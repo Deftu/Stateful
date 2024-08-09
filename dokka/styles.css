@@ -1,0 +1,11 @@
+.theme-dark {
+    --background-color: #28282B;
+    --color-dark: #212125;
+    --default-font-color: #FDFBF9;
+}
+
+.theme-light {
+    --background-color: #DDDDDD;
+    --color-dark: #D1D1D1;
+    --default-font-color: #28282B;
+}

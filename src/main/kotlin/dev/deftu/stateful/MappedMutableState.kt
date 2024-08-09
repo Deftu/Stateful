@@ -1,9 +1,9 @@
 package dev.deftu.stateful
 
-public open class MappedState<T, U>(
+public class MappedMutableState<T, U>(
     initial: State<T>,
     private val mapper: (T) -> U
-) : SimpleState<U>(mapper(initial.get())) {
+) : SimpleMutableState<U>(mapper(initial.get())) {
 
     private var removeListener = initial.subscribe { newValue ->
         value = mapper(newValue)
