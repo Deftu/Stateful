@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package dev.deftu.stateful
 
 import java.util.function.Consumer
@@ -13,7 +15,7 @@ public abstract class State<T> {
     }
 
     public fun getOrElse(default: () -> T): T {
-        return get() ?: default()
+        return get() ?: default.invoke()
     }
 
     public fun getOrThrow(exception: Throwable): T {
@@ -21,7 +23,7 @@ public abstract class State<T> {
     }
 
     public fun getOrThrow(exception: () -> Throwable): T {
-        return get() ?: throw exception()
+        return get() ?: throw exception.invoke()
     }
 
     public fun getOrThrow(message: String): T {
@@ -33,11 +35,11 @@ public abstract class State<T> {
     }
 
     public open fun notifyWithValue(value: T) {
-        listeners.forEach { it(value) }
+        listeners.forEach { listener -> listener.invoke(value) }
     }
 
     public open fun notifyCurrent() {
-        listeners.forEach { it(get()) }
+        listeners.forEach { listener -> listener.invoke(get()) }
     }
 
     public fun subscribe(listener: (T) -> Unit): () -> Unit {
@@ -55,7 +57,7 @@ public abstract class State<T> {
         val subscription = subscribe(listener)
         return {
             subscription()
-            listener(get())
+            listener.invoke(get())
         }
     }
 
