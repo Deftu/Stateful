@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 class StringDslTest {
 
     @Test
-    fun `State string contains should return true`() {
+    fun stateStringContainsReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = stateOf("world")
         val result = state.contains(other)
@@ -13,7 +13,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string contains should return false`() {
+    fun stateStringContainsReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Heya!")
         val result = state.contains(other)
@@ -21,7 +21,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string contains should return true`() {
+    fun stateToStringContainsReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = "world"
         val result = state.contains(other)
@@ -29,7 +29,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string contains should return false`() {
+    fun stateToStringContainsReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = "Heya!"
         val result = state.contains(other)
@@ -37,7 +37,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string startsWith should return true`() {
+    fun stateStringStartsWithReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello")
         val result = state.startsWith(other)
@@ -45,7 +45,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string startsWith should return false`() {
+    fun stateStringStartsWithReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = stateOf("world!")
         val result = state.startsWith(other)
@@ -53,7 +53,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string startsWith should return true`() {
+    fun stateToStringStartsWithReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = "Hello"
         val result = state.startsWith(other)
@@ -61,7 +61,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string startsWith should return false`() {
+    fun stateToStringStartsWithReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = "world!"
         val result = state.startsWith(other)
@@ -69,7 +69,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string endsWith should return true`() {
+    fun stateStringEndsWithReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = stateOf("world!")
         val result = state.endsWith(other)
@@ -77,7 +77,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string endsWith should return false`() {
+    fun stateStringEndsWithReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello")
         val result = state.endsWith(other)
@@ -85,7 +85,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string endsWith should return true`() {
+    fun stateToStringEndsWithReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = "world!"
         val result = state.endsWith(other)
@@ -93,7 +93,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State to string endsWith should return false`() {
+    fun stateToStringEndsWithReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = "Hello"
         val result = state.endsWith(other)
@@ -101,7 +101,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string equals should return true`() {
+    fun stateStringEqualsReturnsTrue() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello, world!")
         val result = state == other
@@ -109,7 +109,7 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string equals should return false`() {
+    fun stateStringEqualsReturnsFalse() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello, world")
         val result = state == other
@@ -117,28 +117,28 @@ class StringDslTest {
     }
 
     @Test
-    fun `State string isEmpty should return false`() {
+    fun stateStringIsEmptyReturnsFalse() {
         val state = stateOf("Hello, world!")
         val result = state.isEmpty()
         assertEquals(false, result.get())
     }
 
     @Test
-    fun `State string isNotEmpty should return true`() {
+    fun stateStringIsNotEmptyReturnsTrue() {
         val state = stateOf("Hello, world!")
         val result = state.isNotEmpty()
         assertEquals(true, result.get())
     }
 
     @Test
-    fun `State string isEmpty should return true`() {
+    fun stateStringIsEmptyReturnsTrue() {
         val state = stateOf("")
         val result = state.isEmpty()
         assertEquals(true, result.get())
     }
 
     @Test
-    fun `State string isNotEmpty should return false`() {
+    fun stateStringIsNotEmptyReturnsFalse() {
         val state = stateOf("")
         val result = state.isNotEmpty()
         assertEquals(false, result.get())

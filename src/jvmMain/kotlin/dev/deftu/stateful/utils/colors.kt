@@ -1,3 +1,5 @@
+@file:JvmName("ColorUtils")
+
 package dev.deftu.stateful.utils
 
 import dev.deftu.stateful.MutableState

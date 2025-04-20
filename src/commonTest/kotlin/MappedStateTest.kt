@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 class MappedStateTest {
 
     @Test
-    fun `MappedState should return the correct value`() {
+    fun mappedStateReturnsCorrectValue() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -17,7 +17,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedState should return the correct value after multiple changes`() {
+    fun mappedStateReturnsCorrectValueAfterMultipleChanges() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -33,7 +33,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedState should return the correct value after multiple changes with different mappers`() {
+    fun mappedStateReturnsCorrectValueAfterMultipleChangesWithDifferentMappers() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -55,7 +55,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedState should return the correct values for rebindings`() {
+    fun mappedStateReturnsCorrectValuesForRebindings() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -86,7 +86,7 @@ class MappedStateTest {
     // Mutable
 
     @Test
-    fun `MappedMutableState should return the correct value`() {
+    fun mappedMutableStateReturnsCorrectValue() {
         val state = mutableStateOf(0)
         val mappedState = mappedMutableStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -96,7 +96,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedMutableState should return the correct value after multiple changes`() {
+    fun mappedMutableStateReturnsCorrectValueAfterMultipleChanges() {
         val state = mutableStateOf(0)
         val mappedState = mappedMutableStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -112,7 +112,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedMutableState should return the correct value after multiple changes with different mappers`() {
+    fun mappedMutableStateReturnsCorrectValueAfterMultipleChangesWithDifferentMappers() {
         val state = mutableStateOf(0)
         val mappedState = mappedMutableStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -134,7 +134,7 @@ class MappedStateTest {
     }
 
     @Test
-    fun `MappedMutableState should return the correct values for rebindings`() {
+    fun mappedMutableStateReturnsCorrectValuesForRebindings() {
         val state = mutableStateOf(0)
         val mappedState = mappedMutableStateOf(state) { it * 2 }
         assertEquals(0, mappedState.get())
@@ -161,5 +161,4 @@ class MappedStateTest {
         state2.set(3)
         assertEquals(9, mappedState2.get())
     }
-
 }

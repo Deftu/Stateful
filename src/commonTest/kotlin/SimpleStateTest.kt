@@ -6,13 +6,13 @@ import kotlin.test.assertEquals
 class SimpleStateTest {
 
     @Test
-    fun `SimpleState should return the initial value`() {
+    fun simpleStateReturnsInitialValue() {
         val state = stateOf(10)
         assertEquals(10, state.get())
     }
 
     @Test
-    fun `SimpleMutableState should return the new value after setting it`() {
+    fun simpleMutableStateReturnsNewValueAfterSettingIt() {
         val state = mutableStateOf(10)
         assertEquals(10, state.get())
 

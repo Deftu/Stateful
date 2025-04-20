@@ -6,49 +6,49 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class BooleanDslTest {
-    
+
     @Test
-    fun `State boolean and should return true`() {
+    fun stateBooleanAndReturnsTrue() {
         val state = stateOf(true)
         val other = stateOf(true)
         val result = state and other
         assertEquals(true, result.get())
     }
-    
+
     @Test
-    fun `State boolean and should return false`() {
+    fun stateBooleanAndReturnsFalse() {
         val state = stateOf(true)
         val other = stateOf(false)
         val result = state and other
         assertEquals(false, result.get())
     }
-    
+
     @Test
-    fun `State to boolean and should return true`() {
+    fun stateAndBooleanReturnsFalse() {
         val state = stateOf(true)
         val other = false
         val result = state and other
         assertEquals(false, result.get())
     }
-    
+
     @Test
-    fun `State to boolean and should return false`() {
+    fun stateAndStateFalseReturnsFalse() {
         val state = stateOf(false)
         val other = stateOf(false)
         val result = state and other
         assertEquals(false, result.get())
     }
-    
+
     @Test
-    fun `Boolean to state and should return true`() {
+    fun booleanAndStateReturnsTrue() {
         val state = true
         val other = stateOf(true)
         val result = state and other
         assertEquals(true, result.get())
     }
-    
+
     @Test
-    fun `Boolean to state and should return false`() {
+    fun booleanAndStateReturnsFalse() {
         val state = false
         val other = stateOf(true)
         val result = state and other
@@ -56,7 +56,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `State boolean or should return true`() {
+    fun stateBooleanOrReturnsTrue() {
         val state = stateOf(true)
         val other = stateOf(true)
         val result = state or other
@@ -64,7 +64,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `State boolean or should return false`() {
+    fun stateBooleanOrReturnsTrueIfOneTrue() {
         val state = stateOf(true)
         val other = stateOf(false)
         val result = state or other
@@ -72,7 +72,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `State to boolean or should return true`() {
+    fun stateOrBooleanReturnsTrue() {
         val state = stateOf(true)
         val other = false
         val result = state or other
@@ -80,7 +80,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `State to boolean or should return false`() {
+    fun stateOrStateFalseReturnsFalse() {
         val state = stateOf(false)
         val other = stateOf(false)
         val result = state or other
@@ -88,7 +88,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `Boolean to state or should return true`() {
+    fun booleanOrStateReturnsTrue() {
         val state = true
         val other = stateOf(true)
         val result = state or other
@@ -96,7 +96,7 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `Boolean to state or should return false`() {
+    fun booleanOrStateReturnsTrueIfStateTrue() {
         val state = false
         val other = stateOf(true)
         val result = state or other
@@ -104,10 +104,10 @@ class BooleanDslTest {
     }
 
     @Test
-    fun `State not should return false`() {
+    fun stateNotReturnsFalse() {
         val state = stateOf(true)
         val result = !state
         assertEquals(false, result.get())
     }
-    
+
 }

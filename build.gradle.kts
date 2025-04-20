@@ -1,49 +1,60 @@
-import org.jetbrains.dokka.base.DokkaBase
-import org.jetbrains.dokka.base.DokkaBaseConfiguration
-import org.jetbrains.dokka.gradle.DokkaTask
-import java.time.Year
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    java
-    kotlin("jvm") version ("2.0.0")
-    val dgt = "2.6.0"
-    id("dev.deftu.gradle.tools") version (dgt)
-    id("dev.deftu.gradle.tools.dokka") version (dgt)
-    id("dev.deftu.gradle.tools.publishing.maven") version (dgt)
+    kotlin("multiplatform") version("2.0.10")
+    val dgt = "2.33.2"
+    id("dev.deftu.gradle.tools") version(dgt)
+    id("dev.deftu.gradle.tools.publishing.maven") version(dgt)
 }
 
-kotlin.explicitApi()
+kotlin {
+    explicitApi()
 
-toolkitMavenPublishing {
-    forceLowercase.set(true)
-}
+    // --- JVM (Desktop, Android, Server) ---
+    jvm()
 
-dependencies {
-    //// Main dependencies
-    compileOnly(kotlin("reflect"))
+    // --- JavaScript (Browser, Node.js) ---
+    js(IR) {
+        generateTypeScriptDefinitions()
+        browser()
+        nodejs()
+        binaries.library()
+    }
 
-    //// Test dependencies
-    testImplementation(kotlin("test"))
-    testImplementation(kotlin("test-junit"))
-}
+    // --- WebAssembly (Experimental) ---
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        generateTypeScriptDefinitions()
+        browser()
+        binaries.library()
+    }
 
-tasks {
+    // --- Native (Commonly Used Platforms) ---
+    linuxX64()       // Desktop Linux
+    mingwX64()       // Windows native
+    macosX64()       // macOS Intel
+    macosArm64()     // macOS Apple Silicon
 
-    withType<DokkaTask> {
-        dokkaSourceSets {
-            named("main") {
-                moduleName.set(projectData.name)
-                moduleVersion.set(projectData.version)
+    iosArm64()       // iOS devices
+    iosSimulatorArm64() // iOS simulator for Apple Silicon
+
+    sourceSets {
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
             }
         }
 
-        pluginConfiguration<DokkaBase, DokkaBaseConfiguration> {
-            separateInheritedMembers = true
-            mergeImplicitExpectActualDeclarations = true
-            footerMessage = "© ${Year.now().value} Deftu"
+        val jvmMain by getting {
+            dependencies {
+                implementation(kotlin("reflect"))
+            }
+        }
 
-            customStyleSheets = listOf(rootProject.file("dokka").resolve("styles.css"))
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit"))
+            }
         }
     }
-
 }

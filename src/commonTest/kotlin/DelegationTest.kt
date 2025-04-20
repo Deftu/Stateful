@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 class DelegationTest {
 
     @Test
-    fun `StateDelegate should return the initial value`() {
+    fun stateDelegateReturnsInitialValue() {
         val state = stateOf(10)
         assertEquals(10, state.get())
 
@@ -17,7 +17,7 @@ class DelegationTest {
     }
 
     @Test
-    fun `MutableStateDelegate should return the new value after setting it`() {
+    fun mutableStateDelegateUpdatesCorrectly() {
         val state = mutableStateOf(10)
         assertEquals(10, state.get())
 
@@ -29,3 +29,4 @@ class DelegationTest {
     }
 
 }
+

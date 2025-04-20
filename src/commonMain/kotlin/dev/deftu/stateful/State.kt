@@ -2,13 +2,9 @@
 
 package dev.deftu.stateful
 
-import java.util.function.Consumer
+public abstract class State<T> : TargetStateSubscriptionAdapter<T>() {
 
-public abstract class State<T> {
-
-    protected val listeners: MutableList<(T) -> Unit> = mutableListOf()
-
-    public abstract fun get(): T
+    public abstract override fun get(): T
 
     public fun getOrDefault(default: T): T {
         return get() ?: default
@@ -42,32 +38,8 @@ public abstract class State<T> {
         listeners.forEach { listener -> listener.invoke(get()) }
     }
 
-    public fun subscribe(listener: (T) -> Unit): () -> Unit {
-        listeners.add(listener)
-        return {
-            listeners.remove(listener)
-        }
-    }
-
-    public fun subscribe(listener: Consumer<T>): () -> Unit {
-        return subscribe(listener::accept)
-    }
-
-    public fun subscribeOnce(listener: (T) -> Unit): () -> Unit {
-        val subscription = subscribe(listener)
-        return {
-            subscription()
-            listener.invoke(get())
-        }
-    }
-
-    public fun subscribeOnce(listener: Consumer<T>): () -> Unit {
-        return subscribeOnce(listener::accept)
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
 
         other as State<*>
 
