@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform") version("2.0.10")
-    val dgt = "2.33.2"
+    val dgt = "2.34.0"
     id("dev.deftu.gradle.tools") version(dgt)
     id("dev.deftu.gradle.tools.publishing.maven") version(dgt)
 }
