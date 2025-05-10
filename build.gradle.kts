@@ -11,7 +11,16 @@ kotlin {
     explicitApi()
 
     // --- JVM (Desktop, Android, Server) ---
-    jvm()
+    jvm {
+        // Compile to Java 8 bytecode
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
+        }
+
+        withJava()
+        withSourcesJar()
+    }
 
     // --- JavaScript (Browser, Node.js) ---
     js(IR) {
@@ -56,5 +65,11 @@ kotlin {
                 implementation(kotlin("test-junit"))
             }
         }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
     }
 }
