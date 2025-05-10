@@ -1,4 +1,6 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("multiplatform") version("2.0.10")
@@ -25,27 +27,38 @@ kotlin {
     // --- JavaScript (Browser, Node.js) ---
     js(IR) {
         generateTypeScriptDefinitions()
+        binaries.library()
         browser()
         nodejs()
-        binaries.library()
     }
 
     // --- WebAssembly (Experimental) ---
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         generateTypeScriptDefinitions()
-        browser()
         binaries.library()
+        browser()
     }
 
-    // --- Native (Commonly Used Platforms) ---
-    linuxX64()       // Desktop Linux
-    mingwX64()       // Windows native
-    macosX64()       // macOS Intel
-    macosArm64()     // macOS Apple Silicon
+    // --- Native (Desktop + Apple ecosystem) ---
+    linuxX64()         // Desktop Linux
+    mingwX64()         // Windows native
+    macosX64()         // macOS Intel (x86_64)
+    macosArm64()       // macOS Apple Silicon (ARM64)
 
-    iosArm64()       // iOS devices
-    iosSimulatorArm64() // iOS simulator for Apple Silicon
+    // --- iOS ---
+    iosArm64()         // iOS physical devices (ARM64)
+    iosSimulatorArm64()// iOS simulator on Apple Silicon (ARM64)
+
+    // --- tvOS ---
+    tvosArm64()        // tvOS physical devices (Apple TV)
+    tvosX64()          // tvOS simulator on Intel
+    tvosSimulatorArm64() // tvOS simulator on Apple Silicon (ARM64)
+
+    // --- watchOS ---
+    watchosArm64()       // watchOS physical devices (Apple Watch)
+    watchosX64()         // watchOS simulator on Intel
+    watchosSimulatorArm64() // watchOS simulator on Apple Silicon (ARM64)
 
     sourceSets {
         val commonTest by getting {
