@@ -43,11 +43,11 @@ public infix fun State<Boolean>.xor(other: State<Boolean>): State<Boolean> {
     return mappedStateOf(zippedStateOf(this, other)) { (a, b) -> a xor b }
 }
 
-public infix fun State<Boolean>.nand(other: Boolean): State<Boolean> {
+public fun State<Boolean>.nand(other: Boolean): State<Boolean> {
     return mappedStateOf(this) { !(it && other) }
 }
 
-public infix fun State<Boolean>.nand(other: State<Boolean>): State<Boolean> {
+public fun State<Boolean>.nand(other: State<Boolean>): State<Boolean> {
     return mappedStateOf(zippedStateOf(this, other)) { (a, b) -> !(a && b) }
 }
 
