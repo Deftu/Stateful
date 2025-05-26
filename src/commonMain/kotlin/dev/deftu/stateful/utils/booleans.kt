@@ -51,6 +51,14 @@ public fun State<Boolean>.nand(other: State<Boolean>): State<Boolean> {
     return mappedStateOf(zippedStateOf(this, other)) { (a, b) -> !(a && b) }
 }
 
+public fun State<Boolean>.nor(other: Boolean): State<Boolean> {
+    return mappedStateOf(this) { !(it || other) }
+}
+
+public fun State<Boolean>.nor(other: State<Boolean>): State<Boolean> {
+    return mappedStateOf(zippedStateOf(this, other)) { (a, b) -> !(a || b) }
+}
+
 public operator fun State<Boolean>.not(): State<Boolean> {
     return mappedStateOf(this) { !it }
 }
