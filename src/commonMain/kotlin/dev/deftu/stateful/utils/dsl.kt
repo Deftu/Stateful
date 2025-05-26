@@ -25,6 +25,10 @@ public fun <T, U> zippedStateOf(first: State<T>, second: State<U>): ZippedState<
     return ZippedState(first, second)
 }
 
+public fun <A, B, R> combineStateOf(a: State<A>, b: State<B>, transform: (A, B) -> R): State<R> {
+    return mappedStateOf(zippedStateOf(a, b)) { (va, vb) -> transform(va, vb) }
+}
+
 public open class StateDelegate<T>(
     public open val state: State<T>
 ) : ReadOnlyProperty<Any?, T> {
