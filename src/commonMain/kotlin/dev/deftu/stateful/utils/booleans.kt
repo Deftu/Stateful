@@ -7,6 +7,10 @@ public fun MutableState<Boolean>.toggle() {
     set { !it }
 }
 
+public fun State<Boolean>.inverted(): State<Boolean> {
+    return mappedStateOf(this) { !it }
+}
+
 public infix fun State<Boolean>.and(other: State<Boolean>): State<Boolean> {
     return mappedStateOf(zippedStateOf(this, other)) { (a, b) -> a && b }
 }
