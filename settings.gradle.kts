@@ -39,3 +39,5 @@ dependencyResolutionManagement {
 include("coroutines")
 include("elementa")
 include("compose")
+include("svelte")
+include("react")
