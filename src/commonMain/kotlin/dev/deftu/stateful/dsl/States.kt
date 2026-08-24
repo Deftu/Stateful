@@ -37,6 +37,21 @@ public fun <T> mutableStateOf(
 public fun <T> stateOf(value: T): State<T> = ConstantState(value)
 
 /**
+ * Creates a writable state that reacts to **replacement only**, compared by identity.
+ *
+ * The escape hatch for large or expensive-to-compare payloads. A structural comparison of a big
+ * immutable blob on every write costs as much as the work the graph is trying to avoid, so this
+ * compares references instead: assigning a different instance propagates, assigning the same
+ * instance does not, and mutating the value in place is invisible.
+ *
+ * Nothing here tracks the contents of a value, so this differs from [mutableStateOf] only in the
+ * cost and the meaning of a write — it is not a deep/shallow switch. Reach for a reactive
+ * collection when the contents themselves need to be observed.
+ */
+public fun <T> rawStateOf(value: T): MutableState<T> =
+    mutableStateOf(value, Equality.referential())
+
+/**
  * Creates a lazily computed, cached state.
  *
  * [compute] runs on the first read and then only when a dependency it actually read has changed.
