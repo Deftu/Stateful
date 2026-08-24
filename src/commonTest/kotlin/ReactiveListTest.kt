@@ -320,7 +320,7 @@ class ReactiveListTest {
 
     @Test
     fun anInPlaceEditDoesNotReconcileTheWholeList() {
-        val list = reactiveListOf(Row(1, "a"), Row(2, "b"), Row(3, "c"))
+        val list = reactiveListOf(List(20) { index -> Row(index, "row $index") })
         var keyLookups = 0
 
         val owner = createRoot { owner ->
@@ -329,9 +329,9 @@ class ReactiveListTest {
         }
         keyLookups = 0
 
-        list[1] = Row(2, "B")
+        list[7] = Row(7, "edited")
 
-        assertEquals(0, keyLookups)
+        assertTrue(keyLookups <= 2, "expected O(1) key lookups, saw $keyLookups for 20 rows")
         owner.dispose()
     }
 
@@ -368,6 +368,53 @@ class ReactiveListTest {
         list.add(Row(2, "b"))
 
         assertTrue(keyLookups >= 2, "expected reconciliation, saw $keyLookups key lookups")
+        owner.dispose()
+    }
+
+    @Test
+    fun anEntryOnlyEverObservesElementsWithItsOwnKey() {
+        val list = reactiveListOf(Row(1, "a"), Row(2, "b"), Row(3, "c"), Row(4, "d"))
+        val violations = mutableListOf<String>()
+
+        val owner = createRoot { owner ->
+            list.mapKeyed(key = { row -> row.id }) { element, _ ->
+                val ownKey = element.value.id
+                effect {
+                    val seen = element()
+                    if (seen.id != ownKey) violations.add("entry $ownKey saw ${seen.id}")
+                }
+            }
+            owner
+        }
+
+        list.removeAt(0)
+        list.add(Row(5, "e"))
+        list.move(0, 2)
+        list[0] = list.getUntracked(0).copy(label = "edited")
+
+        assertEquals(emptyList<String>(), violations)
+        owner.dispose()
+    }
+
+    @Test
+    fun anEntryFollowsItsElementAcrossAMove() {
+        val list = reactiveListOf(Row(1, "a"), Row(2, "b"), Row(3, "c"))
+        val seen = mutableListOf<String>()
+
+        val owner = createRoot { owner ->
+            list.mapKeyed(key = { row -> row.id }) { element, _ ->
+                if (element.value.id == 1) effect { seen.add(element().label) }
+            }
+            owner
+        }
+        seen.clear()
+
+        list.move(0, 2)
+        seen.clear()
+
+        list[2] = Row(1, "moved and edited")
+
+        assertEquals(listOf("moved and edited"), seen)
         owner.dispose()
     }
 }

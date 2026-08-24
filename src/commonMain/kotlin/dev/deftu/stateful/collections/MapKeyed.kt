@@ -81,8 +81,21 @@ public fun <E, R> ReactiveList<E>.mapKeyed(
                 val result = if (entryOwner != null) {
                     runWithOwner(entryOwner) {
                         // Bound to the entry rather than to this reconciliation, so it survives
-                        // re-runs and is what makes an in-place edit cost O(1).
-                        effect { elementState.set(this@mapKeyed[indexState.value]) }
+                        // re-runs and is what makes an in-place edit cost O(1). It watches its own
+                        // slot and its own index, not the structure, so a move wakes only the
+                        // positions that actually shifted.
+                        //
+                        // The key check is what makes that safe: an entry effect can run before the
+                        // reconciler has corrected its index, and would otherwise adopt whichever
+                        // element now sits at the stale position.
+                        effect {
+                            val position = indexState()
+                            if (position < untrackedSize) {
+                                val candidate = trackedSlot(position)
+                                if (key(candidate) == identity) elementState.set(candidate)
+                            }
+                        }
+
                         transform(elementState, indexState)
                     }
                 } else {

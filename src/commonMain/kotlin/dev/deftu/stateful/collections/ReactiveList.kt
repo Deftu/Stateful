@@ -63,6 +63,16 @@ public class ReactiveList<E> internal constructor(initial: List<E>) : AbstractMu
     /** Reads the element at [index] without registering a dependency. */
     public fun getUntracked(index: Int): E = backing[index]
 
+    /**
+     * Reads the element at [index], registering on that slot alone and not on the structure.
+     *
+     * [get] registers on both, because a caller reading by position needs to learn when its index
+     * stops existing. A caller that already tracks the validity of its own index by other means —
+     * [mapKeyed], whose reconciler owns that question — would otherwise wake on every structural
+     * change no matter which positions actually moved.
+     */
+    internal fun trackedSlot(index: Int): E = slotAt(index)()
+
     override fun set(index: Int, element: E): E {
         val previous = backing.set(index, element)
         slots.getOrNull(index)?.set(element)
