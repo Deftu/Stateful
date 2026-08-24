@@ -186,6 +186,13 @@ compiles against Elementa's state artifact alone, so it does not pull a UI toolk
 
 Each adapter module has its own README.
 
+## Upgrading from 0.7
+
+0.8 replaces the evaluation model and every 0.7 consumer has to change something. One of those
+changes — `get()` splitting into a tracked `state()` and an untracked `state.value` — fails
+silently if you pick the wrong one, so start with [MIGRATING.md](MIGRATING.md), which covers the
+whole break with a replacement for each removed API.
+
 ## Documentation
 
 Every public declaration carries KDoc. The two worth reading before anything else are `State.invoke`
