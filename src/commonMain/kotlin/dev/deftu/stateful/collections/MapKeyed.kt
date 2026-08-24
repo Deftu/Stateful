@@ -20,9 +20,9 @@ private class KeyedEntry<E, R>(
  * Derives one result per element, keyed by identity rather than by position.
  *
  * [transform] runs **once per key**, not once per change. An element that moves keeps the result
- * built for it, with its index state updated; an element that is replaced in place keeps its result
- * and sees the new value through its element state. Only a genuinely new key builds anything, and
- * only a departed key tears anything down.
+ * built for it, with its index state updated; an element replaced in place keeps its result and
+ * sees the new value through its element state. Only a genuinely new key builds anything, and only
+ * a departed key tears anything down.
  *
  * This is what makes list-shaped UI viable. Deriving with `memo { list.map { … } }` instead is
  * correct but rebuilds every result on every change, which for a list of views means discarding and
@@ -31,6 +31,13 @@ private class KeyedEntry<E, R>(
  * Each result is built under its own child owner, so anything [transform] creates — nested effects,
  * cleanups — is disposed when that element leaves the list. The whole mapping is disposed with the
  * enclosing owner.
+ *
+ * ### Cost
+ *
+ * Replacing an element is **O(1)**: each entry watches its own position, so an edit wakes that
+ * entry alone and reconciliation does not run at all. A structural change — insert, remove, move,
+ * clear — is O(n), because every position after the edit point now holds a different element and
+ * the key-to-result mapping has to be rebuilt.
  *
  * [transform] runs with the runtime lock released, so it may build views, touch other locks, and
  * create effects of its own.
@@ -49,23 +56,35 @@ public fun <E, R> ReactiveList<E>.mapKeyed(
     }
 
     effect {
-        val elements = toList()
-        val reconciled = LinkedHashMap<Any?, KeyedEntry<E, R>>(elements.size)
+        // Only the structure is tracked here. Element values are read untracked and delivered by
+        // each entry's own effect below, so replacing one element does not drag the whole list
+        // through reconciliation.
+        val count = size
 
-        elements.forEachIndexed { index, element ->
+        val reconciled = LinkedHashMap<Any?, KeyedEntry<E, R>>(count)
+        val output = ArrayList<R>(count)
+
+        for (index in 0 until count) {
+            val element = getUntracked(index)
             val identity = key(element)
             val existing = entries.remove(identity)
 
             val entry = if (existing != null) {
+                if (existing.index.value != index) existing.index.set(index)
                 existing.element.set(element)
-                existing.index.set(index)
                 existing
             } else {
                 val elementState = mutableStateOf(element)
                 val indexState = mutableStateOf(index)
                 val entryOwner = owner?.child()
+
                 val result = if (entryOwner != null) {
-                    runWithOwner(entryOwner) { transform(elementState, indexState) }
+                    runWithOwner(entryOwner) {
+                        // Bound to the entry rather than to this reconciliation, so it survives
+                        // re-runs and is what makes an in-place edit cost O(1).
+                        effect { elementState.set(this@mapKeyed[indexState.value]) }
+                        transform(elementState, indexState)
+                    }
                 } else {
                     transform(elementState, indexState)
                 }
@@ -74,13 +93,14 @@ public fun <E, R> ReactiveList<E>.mapKeyed(
             }
 
             reconciled[identity] = entry
+            output.add(entry.result)
         }
 
         for (departed in entries.values) departed.owner?.dispose()
         entries.clear()
         entries.putAll(reconciled)
 
-        results.set(reconciled.values.map { it.result })
+        results.set(output)
     }
 
     return results

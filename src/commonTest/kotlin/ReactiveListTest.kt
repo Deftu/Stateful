@@ -317,4 +317,57 @@ class ReactiveListTest {
 
         assertEquals(2, matching.value)
     }
+
+    @Test
+    fun anInPlaceEditDoesNotReconcileTheWholeList() {
+        val list = reactiveListOf(Row(1, "a"), Row(2, "b"), Row(3, "c"))
+        var keyLookups = 0
+
+        val owner = createRoot { owner ->
+            list.mapKeyed(key = { row -> keyLookups++; row.id }) { element, _ -> element }
+            owner
+        }
+        keyLookups = 0
+
+        list[1] = Row(2, "B")
+
+        assertEquals(0, keyLookups)
+        owner.dispose()
+    }
+
+    @Test
+    fun anInPlaceEditStillReachesItsOwnEntry() {
+        val list = reactiveListOf(Row(1, "a"), Row(2, "b"))
+        val seen = mutableListOf<String>()
+
+        val owner = createRoot { owner ->
+            list.mapKeyed(key = { row -> row.id }) { element, _ ->
+                effect { seen.add(element().label) }
+            }
+            owner
+        }
+        seen.clear()
+
+        list[1] = Row(2, "B")
+
+        assertEquals(listOf("B"), seen)
+        owner.dispose()
+    }
+
+    @Test
+    fun aStructuralChangeStillReconciles() {
+        val list = reactiveListOf(Row(1, "a"))
+        var keyLookups = 0
+
+        val owner = createRoot { owner ->
+            list.mapKeyed(key = { row -> keyLookups++; row.id }) { element, _ -> element }
+            owner
+        }
+        keyLookups = 0
+
+        list.add(Row(2, "b"))
+
+        assertTrue(keyLookups >= 2, "expected reconciliation, saw $keyLookups key lookups")
+        owner.dispose()
+    }
 }
