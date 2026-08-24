@@ -15,11 +15,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Mirrors the code blocks in the usage guide that depend only on this library.
+ * Every documented usage pattern that depends only on this library, run against the real API.
  *
- * The guide drifted for four milestones — showing signatures that had changed and one API that was
- * deliberately never shipped — because nothing compiled it. Sections that need a foreign framework
- * still cannot be checked here; each adapter module's own tests cover those shapes instead.
+ * A pattern nobody executes is an untested claim. Patterns needing a foreign framework cannot be
+ * checked from here; each adapter module's own tests cover those.
  */
 class UsageSamplesTest {
     private data class Item(val price: Int)

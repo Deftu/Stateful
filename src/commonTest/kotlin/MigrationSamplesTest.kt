@@ -20,10 +20,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Every replacement the migration guide offers, run against the real API.
+ * Every replacement offered by `MIGRATING.md`, run against the real API.
  *
- * A migration guide is read exactly once per consumer, by someone whose code does not compile. An
- * example that is wrong there costs more than one that is wrong anywhere else.
+ * That guide is read exactly once per consumer, by someone whose code does not compile. An example
+ * that is wrong there costs more than one wrong anywhere else.
  */
 class MigrationSamplesTest {
     private class View {

@@ -18,14 +18,17 @@ public fun <A, B, C> State<Triple<A, B, C>>.third(): State<C> {
     return map { value -> value.third }
 }
 
+/** Destructuring support, so `val (a, b, c) = tripleState` yields three independently tracked states. */
 public operator fun <A, B, C> State<Triple<A, B, C>>.component1(): State<A> {
     return first()
 }
 
+/** Destructuring support. See [component1]. */
 public operator fun <A, B, C> State<Triple<A, B, C>>.component2(): State<B> {
     return second()
 }
 
+/** Destructuring support. See [component1]. */
 public operator fun <A, B, C> State<Triple<A, B, C>>.component3(): State<C> {
     return third()
 }

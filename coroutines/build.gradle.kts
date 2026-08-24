@@ -40,22 +40,18 @@ kotlin {
         binaries.library()
     }
 
-    // --- Desktop native ---
     linuxX64()
     mingwX64()
     macosX64()
     macosArm64()
 
-    // --- iOS ---
     iosArm64()
     iosSimulatorArm64()
 
-    // --- tvOS ---
     tvosArm64()
     tvosX64()
     tvosSimulatorArm64()
 
-    // --- watchOS ---
     watchosArm64()
     watchosX64()
     watchosSimulatorArm64()

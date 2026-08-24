@@ -24,10 +24,10 @@ public interface Readable<T> {
 /** The writable half of the Svelte store contract: [Readable] plus [set] and [update]. */
 @JsExport
 public interface Writable<T> : Readable<T> {
-    /** Replaces the value. */
+    /** Writes through to the underlying state, so a `bind:value` drives it directly. */
     public fun set(value: T)
 
-    /** Replaces the value with the result of [updater] applied to the current one. */
+    /** Writes through, reading the current value untracked to build the new one. */
     public fun update(updater: (T) -> T)
 }
 

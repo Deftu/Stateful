@@ -3,8 +3,9 @@
 Kotlin Multiplatform library for observable state: a value you can read, subscribe to, and
 derive other values from. Published as `dev.deftu:stateful`, LGPL-3.0.
 
-**Zero runtime dependencies is a hard invariant.** `commonMain` declares none, and neither
-does any platform source set. A consumer takes this library and nothing else.
+**One runtime dependency, and no more.** `commonMain` declares `kotlinx-atomicfu`, which provides
+the graph lock and degrades to a no-op on JS. Nothing else, on any platform. Adapters ship
+separately so a consumer never pays for one they do not use.
 
 ## The `.agents` directory
 
@@ -45,8 +46,9 @@ They are consistent with each other and this project should not be the exception
   reader should be able to guess what a class does from its name alone.
 - **Machinery lives in `internal/`**, matching Evocation. Public API sits at the package root or in
   a purposeful subpackage — `dsl/`, `ext/`, `collections/`.
-- **Extension files are `<Type>Extensions.kt`**, matching outcome's `OutcomeExtensions.kt` and
-  `HttpClientExtensions.kt`. Here: `StateExtensions.kt`.
+- **Operators on `State` itself live in `<Type>Extensions.kt`** — `StateExtensions.kt`, matching
+  outcome's `OutcomeExtensions.kt`. Extensions grouped by the *value* type they apply to keep that
+  type's name instead: `ext/Booleans.kt`, `ext/Strings.kt`, `ext/Colors.kt`.
 - **Platform actuals are `<File>.<target>.kt`** — `StateTracking.jvm.kt`, `StateTracking.js.kt` —
   matching Evocation's `EventBus.jvm.kt`.
 - **Modules are `<library>-<adapter>`**, published as `dev.deftu:stateful-coroutines` and so on.
@@ -72,7 +74,7 @@ to the emitted `.d.ts` as well.
 
 | Path                                | Contents                                                      |
 | ----------------------------------- | ------------------------------------------------------------- |
-| `commonMain/.../stateful`           | The API surface: `State`, `MutableState`, `Owner`, `Scheduler`, `Equality`, `StateListener`, `Subscription`, `Disposable`, `StateWarnings`, `StateExtensions` |
+| `commonMain/.../stateful`           | The API surface: `State`, `MutableState`, `Owner`, `Scheduler`, `Equality`, `StateListener`, `Subscription`, `Disposable`, `StateWarnings`, `StateExtensions`, `Snapshot` |
 | `commonMain/.../stateful/internal`  | The machinery: `StateGraph` (lock, queue, flush), `StateNode` (the graph node), `StateTracking` (thread-local context), `Warnings` |
 | `commonMain/.../stateful/dsl`       | Factories and delegates: `mutableStateOf`, `memo`, `derivedStateOf`, `effect`, `createRoot`, `createOwner`, `runWithOwner`, `onCleanup`, `batch`, `untracked` |
 | `commonMain/.../stateful/collections` | `ReactiveList`, `ReactiveMap`, `ReactiveSet`, `ListChange`, `mapKeyed` |
@@ -165,8 +167,8 @@ follows.
   the generated TypeScript. Bump `project.version` in `gradle.properties` accordingly.
 - The build scripts carry comments on the places Kit 0.6.0 needs working around, each saying
   what breaks without it. Leave them until the Kit side is fixed.
-- The README documents setup only and carries a notice saying it is outdated. Update it or
-  leave the notice; do not delete the notice alone.
+- The README, `MIGRATING.md` and `docs/` are public surface. A change to a public signature
+  changes them too, and every sample in them is compiled — see the sample rule above.
 
 ## Code Guidelines
 
@@ -177,7 +179,9 @@ Permitted comments, exhaustively:
 - `/** */` KDoc on public items — on **every** one, saying what the signature cannot. For the
   `ext/` operators that is the equality cutoff each buys, not what it returns; a doc restating
   the name satisfies the letter of this and is worth nothing. If there is no such thing to say,
-  the declaration probably should not be public.
+  the declaration probably should not be public — but where it genuinely must stay public and
+  genuinely has nothing to add, a plain one-line KDoc is correct. "Required and banned" is
+  resolved in favour of required.
 - *Why* a non-obvious line is the way it is: a platform quirk, a build-tool gap, a measured
   tradeoff, an invariant the types can't express, a link to the upstream issue
 - `TODO(owner):`
@@ -186,12 +190,20 @@ Everything else is noise. Specifically, never write:
 
 - Narration of the next line — `// Add the subscription`, `// Loop over listeners`
 - Restatements of the signature — `// Returns the current value`
-- Section headings — `// === Helpers ===`, `// --- Setup ---`
+- Section headings — `// === Helpers ===`, `// --- Setup ---`, and undecorated labels over a
+  block such as `// Desktop native`. The ban is on the function, not the punctuation: a blank
+  line already separates groups.
 - Changelog commentary — `// now uses a snapshot instead of the live list`,
   `// added to fix the dispose test`. That belongs in the commit message.
-- References to external documents, design tools or note systems. A comment must stand on
-  its own for a reader who has only the repository.
-- Comments inside test bodies. The test name is the sentence stating the property.
+- References to documents a reader of the clone does not have. The test is whether the document
+  is **tracked in git**: naming `MIGRATING.md` or a file under `docs/` is fine, and so is
+  `[StateNode.mark]`. Naming anything under `.agents/` is not, because it is gitignored and
+  per-machine. Neither is a citation by number — "see D42", "per section 4" — since the
+  reader cannot resolve it. State the reason inline instead. Design tools and note systems are
+  never citable.
+- Comments inside test bodies. The test name is the sentence stating the property. KDoc *above*
+  a test is allowed only for something the name cannot carry — why an assertion is loose, or a
+  nondeterminism the reader would otherwise take for a bug.
 
 If a comment describes *what* the code does, delete it and fix the naming, or extract a
 named function. A comment is not a substitute for a binding with a good name.

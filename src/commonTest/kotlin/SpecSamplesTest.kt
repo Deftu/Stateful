@@ -18,10 +18,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Mirrors the worked examples in the specification, and asserts what their comments claim.
+ * The library's worked examples, asserting what each one's annotations claim.
  *
- * The point is the comments as much as the code. A sample that says "prints 10, once" is a
- * behavioural claim, and an uncompiled claim is an untested one.
+ * The annotations matter as much as the code: a sample saying "prints 10, once" is a behavioural
+ * claim, and an unexecuted claim is an untested one.
  */
 class SpecSamplesTest {
     private data class Point(val x: Int, val y: Int)

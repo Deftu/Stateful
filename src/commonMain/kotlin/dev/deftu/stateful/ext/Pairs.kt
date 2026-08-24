@@ -13,10 +13,12 @@ public fun <A, B> State<Pair<A, B>>.second(): State<B> {
     return map { value -> value.second }
 }
 
+/** Destructuring support, so `val (a, b) = pairState` yields two independently tracked states. */
 public operator fun <A, B> State<Pair<A, B>>.component1(): State<A> {
     return first()
 }
 
+/** Destructuring support. See [component1]. */
 public operator fun <A, B> State<Pair<A, B>>.component2(): State<B> {
     return second()
 }

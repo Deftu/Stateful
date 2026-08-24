@@ -16,7 +16,7 @@ internal enum class NodeKind {
 }
 
 /**
- * Ordering is load-bearing: [Node.mark] only ever raises a node's state, which is what stops a
+ * Ordering is load-bearing: [StateNode.mark] only ever raises a node's state, which is what stops a
  * write from re-walking a subgraph it has already marked.
  */
 internal enum class NodeState {
@@ -209,8 +209,8 @@ internal class StateNode<T>(
 
         stored = newValue
 
-        // Marking never mutates the list being walked, so the defensive copy these loops used to
-        // make was pure allocation on the hottest write path.
+        // Walked in place rather than over a defensive copy: marking never mutates the list being
+        // walked, so a copy would be pure allocation on the hottest write path.
         val watchers = dependents
         if (watchers != null) {
             for (index in watchers.indices) {
