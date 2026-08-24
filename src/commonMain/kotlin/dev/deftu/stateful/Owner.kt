@@ -15,9 +15,11 @@ import dev.deftu.stateful.internal.StateGraph
 public class Owner internal constructor(
     internal val scheduler: Scheduler,
 ) : Disposable {
-    private val children = mutableListOf<Owner>()
-    private val cleanups = mutableListOf<() -> Unit>()
-    private val nodes = mutableListOf<StateNode<*>>()
+    // Allocated on first use. Most owners never hold all three, and an effect creates one of these
+    // per run, so three empty lists apiece is real weight on every mount.
+    private var children: MutableList<Owner>? = null
+    private var cleanups: MutableList<() -> Unit>? = null
+    private var nodes: MutableList<StateNode<*>>? = null
     private var disposed = false
 
     override val isDisposed: Boolean
@@ -31,39 +33,44 @@ public class Owner internal constructor(
      * what an owner is holding, that failure cannot be tested from outside this module.
      */
     public val childCount: Int
-        get() = StateGraph.locked { children.size }
+        get() = StateGraph.locked { children?.size ?: 0 }
 
     /** How many cleanups are registered on this owner. See [childCount]. */
     public val cleanupCount: Int
-        get() = StateGraph.locked { cleanups.size }
+        get() = StateGraph.locked { cleanups?.size ?: 0 }
 
     /** How many computations belong directly to this owner. See [childCount]. */
     public val computationCount: Int
-        get() = StateGraph.locked { nodes.size }
+        get() = StateGraph.locked { nodes?.size ?: 0 }
 
     /** Whether this owner holds nothing: no children, no cleanups, no computations. */
     public val isEmpty: Boolean
-        get() = StateGraph.locked { children.isEmpty() && cleanups.isEmpty() && nodes.isEmpty() }
+        get() = StateGraph.locked {
+            children.isNullOrEmpty() && cleanups.isNullOrEmpty() && nodes.isNullOrEmpty()
+        }
 
     internal fun child(): Owner? = StateGraph.locked {
         if (disposed) return@locked null
 
         val child = Owner(scheduler)
-        children.add(child)
+        val existing = children ?: ArrayList<Owner>().also { children = it }
+        existing.add(child)
         child
     }
 
     internal fun register(node: StateNode<*>) {
         StateGraph.locked {
             if (disposed) return@locked
-            nodes.add(node)
+            val existing = nodes ?: ArrayList<StateNode<*>>().also { nodes = it }
+            existing.add(node)
         }
     }
 
     internal fun addCleanup(block: () -> Unit) {
         StateGraph.locked {
             if (disposed) return@locked
-            cleanups.add(block)
+            val existing = cleanups ?: ArrayList<() -> Unit>().also { cleanups = it }
+            existing.add(block)
         }
     }
 
@@ -78,10 +85,14 @@ public class Owner internal constructor(
         val (takenChildren, takenCleanups, takenNodes) = StateGraph.locked {
             if (disposed) return@locked Triple(emptyList<Owner>(), emptyList<() -> Unit>(), emptyList<StateNode<*>>())
 
-            val snapshot = Triple(children.toList(), cleanups.toList(), nodes.toList())
-            children.clear()
-            cleanups.clear()
-            nodes.clear()
+            val snapshot = Triple(
+                children?.toList() ?: emptyList(),
+                cleanups?.toList() ?: emptyList(),
+                nodes?.toList() ?: emptyList(),
+            )
+            children = null
+            cleanups = null
+            nodes = null
             snapshot
         }
 
@@ -100,10 +111,14 @@ public class Owner internal constructor(
             if (disposed) return@locked null
 
             disposed = true
-            val snapshot = Triple(children.toList(), cleanups.toList(), nodes.toList())
-            children.clear()
-            cleanups.clear()
-            nodes.clear()
+            val snapshot = Triple(
+                children?.toList() ?: emptyList(),
+                cleanups?.toList() ?: emptyList(),
+                nodes?.toList() ?: emptyList(),
+            )
+            children = null
+            cleanups = null
+            nodes = null
             snapshot
         } ?: return
 

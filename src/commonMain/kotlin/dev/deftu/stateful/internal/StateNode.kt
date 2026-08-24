@@ -52,8 +52,16 @@ internal class StateNode<T>(
 ) {
     private var stored: Any? = stored
 
-    private val dependencies = mutableListOf<StateNode<*>>()
-    private val dependents = mutableListOf<StateNode<*>>()
+    // Allocated on first use. An effect never has dependents and a source never has dependencies,
+    // so one of these is provably dead weight on every node of those kinds.
+    private var dependencies: MutableList<StateNode<*>>? = null
+    private var dependents: MutableList<StateNode<*>>? = null
+
+    private fun dependencyList(): MutableList<StateNode<*>> =
+        dependencies ?: ArrayList<StateNode<*>>().also { dependencies = it }
+
+    private fun dependentList(): MutableList<StateNode<*>> =
+        dependents ?: ArrayList<StateNode<*>>().also { dependents = it }
 
     /**
      * How many dependencies of the run in progress have matched the previous run positionally.
@@ -121,32 +129,37 @@ internal class StateNode<T>(
 
     private fun link(dependency: StateNode<*>) {
         if (collectIndex < 0) {
-            if (!dependencies.contains(dependency)) {
-                dependencies.add(dependency)
-                dependency.dependents.add(this)
-            }
-
+            attach(dependency)
             return
         }
 
+        val current = dependencies
         if (collectOverflow == null) {
-            if (collectIndex < dependencies.size && dependencies[collectIndex] === dependency) {
+            if (current != null && collectIndex < current.size && current[collectIndex] === dependency) {
                 collectIndex++
                 return
             }
 
-            val seen = LinkedHashSet<StateNode<*>>(dependencies.size + 4)
-            for (index in 0 until collectIndex) seen.add(dependencies[index])
+            val seen = LinkedHashSet<StateNode<*>>((current?.size ?: 0) + 4)
+            if (current != null) {
+                for (index in 0 until collectIndex) seen.add(current[index])
+            }
+
             collectOverflow = seen
         }
 
         val seen = collectOverflow ?: return
         if (!seen.add(dependency)) return
 
-        if (!dependencies.contains(dependency)) {
-            dependencies.add(dependency)
-            dependency.dependents.add(this)
-        }
+        attach(dependency)
+    }
+
+    private fun attach(dependency: StateNode<*>) {
+        val mine = dependencyList()
+        if (mine.contains(dependency)) return
+
+        mine.add(dependency)
+        dependency.dependentList().add(this)
     }
 
     /**
@@ -160,21 +173,24 @@ internal class StateNode<T>(
         // collection before the outer one unwinds. Nothing is left to prune at that point.
         if (collectIndex < 0) return
 
-        val overflow = collectOverflow
-        if (overflow == null) {
-            while (dependencies.size > collectIndex) {
-                val stale = dependencies.removeAt(dependencies.size - 1)
-                stale.dependents.remove(this)
-            }
-        } else {
-            var index = 0
-            while (index < dependencies.size) {
-                val dependency = dependencies[index]
-                if (dependency in overflow) {
-                    index++
-                } else {
-                    dependencies.removeAt(index)
-                    dependency.dependents.remove(this)
+        val mine = dependencies
+        if (mine != null) {
+            val overflow = collectOverflow
+            if (overflow == null) {
+                while (mine.size > collectIndex) {
+                    val stale = mine.removeAt(mine.size - 1)
+                    stale.dependents?.remove(this)
+                }
+            } else {
+                var index = 0
+                while (index < mine.size) {
+                    val dependency = mine[index]
+                    if (dependency in overflow) {
+                        index++
+                    } else {
+                        mine.removeAt(index)
+                        dependency.dependents?.remove(this)
+                    }
                 }
             }
         }
@@ -195,8 +211,11 @@ internal class StateNode<T>(
 
         // Marking never mutates the list being walked, so the defensive copy these loops used to
         // make was pure allocation on the hottest write path.
-        for (index in dependents.indices) {
-            dependents[index].markDirty()
+        val watchers = dependents
+        if (watchers != null) {
+            for (index in watchers.indices) {
+                watchers[index].markDirty()
+            }
         }
 
         return true
@@ -217,16 +236,20 @@ internal class StateNode<T>(
 
     private fun markDirty() {
         mark(NodeState.Dirty)
-        for (index in dependents.indices) {
-            dependents[index].markCheck()
+
+        val watchers = dependents ?: return
+        for (index in watchers.indices) {
+            watchers[index].markCheck()
         }
     }
 
     private fun markCheck() {
         if (state != NodeState.Clean) return
         mark(NodeState.Check)
-        for (index in dependents.indices) {
-            dependents[index].markCheck()
+
+        val watchers = dependents ?: return
+        for (index in watchers.indices) {
+            watchers[index].markCheck()
         }
     }
 
@@ -242,11 +265,14 @@ internal class StateNode<T>(
         if (state == NodeState.Check) {
             // Indexed rather than copied, and re-reading the size each turn, because resolving a
             // dependency can prune this node's own list.
-            var index = 0
-            while (index < dependencies.size) {
-                dependencies[index].resolve()
-                if (state == NodeState.Dirty) break
-                index++
+            val mine = dependencies
+            if (mine != null) {
+                var index = 0
+                while (index < mine.size) {
+                    mine[index].resolve()
+                    if (state == NodeState.Dirty) break
+                    index++
+                }
             }
         }
 
@@ -288,8 +314,12 @@ internal class StateNode<T>(
         val previous = stored
         if (previous === UNSET || !equality.areEqual(previous as T, newValue)) {
             stored = newValue
-            for (index in dependents.indices) {
-                dependents[index].mark(NodeState.Dirty)
+
+            val watchers = dependents
+            if (watchers != null) {
+                for (index in watchers.indices) {
+                    watchers[index].mark(NodeState.Dirty)
+                }
             }
         }
     }
@@ -382,15 +412,16 @@ internal class StateNode<T>(
             if (state == NodeState.Disposed) return@locked
 
             state = NodeState.Disposed
-            for (index in dependencies.indices) {
-                dependencies[index].dependents.remove(this)
-            }
-            dependencies.clear()
 
-            for (index in dependents.indices) {
-                dependents[index].dependencies.remove(this)
+            dependencies?.let { mine ->
+                for (index in mine.indices) mine[index].dependents?.remove(this)
             }
-            dependents.clear()
+            dependencies = null
+
+            dependents?.let { watchers ->
+                for (index in watchers.indices) watchers[index].dependencies?.remove(this)
+            }
+            dependents = null
 
             collectIndex = -1
             collectOverflow = null
