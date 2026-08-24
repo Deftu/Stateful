@@ -125,6 +125,9 @@ public fun effect(block: () -> Unit): Disposable {
  * Creates a lifetime for the computations made inside [block], and hands it to [block] so it can
  * be disposed later.
  *
+ * The [Owner] itself is passed rather than a bare [Disposable], so the block can also ask what the
+ * owner is holding — which is what a leak assertion needs.
+ *
  * Disposing the owner tears down every effect and nested owner created under it, depth-first,
  * running cleanups in reverse creation order. One root per screen or component, disposed on
  * unmount, is the intended shape.
@@ -135,7 +138,7 @@ public fun effect(block: () -> Unit): Disposable {
  * not dispose it. Roots are independent lifetimes by definition; nest [effect]s, not roots, when
  * you want automatic teardown.
  */
-public fun <T> createRoot(scheduler: Scheduler = Scheduler.Immediate, block: (Disposable) -> T): T {
+public fun <T> createRoot(scheduler: Scheduler = Scheduler.Immediate, block: (Owner) -> T): T {
     val owner = Owner(scheduler)
     return tracking.withOwner(owner) { block(owner) }
 }

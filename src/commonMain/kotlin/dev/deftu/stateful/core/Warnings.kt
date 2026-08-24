@@ -1,5 +1,7 @@
 package dev.deftu.stateful.core
 
+import dev.deftu.stateful.Diagnostics
+
 /**
  * Reports a probable misuse that is not fatal enough to throw for.
  *
@@ -7,5 +9,5 @@ package dev.deftu.stateful.core
  * worse than the mistake itself, so these are warnings.
  */
 internal fun warn(message: String) {
-    println("[stateful] $message")
+    Diagnostics.onWarning(message)
 }

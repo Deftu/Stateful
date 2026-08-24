@@ -23,6 +23,28 @@ public class Owner internal constructor(
     override val isDisposed: Boolean
         get() = Runtime.locked { disposed }
 
+    /**
+     * How many child owners this owner holds.
+     *
+     * Present so a consumer can write a leak assertion. Failing to dispose an owner is this
+     * library's worst failure mode — it is silent, and it compounds — and without a way to count
+     * what an owner is holding, that failure cannot be tested from outside this module.
+     */
+    public val childCount: Int
+        get() = Runtime.locked { children.size }
+
+    /** How many cleanups are registered on this owner. See [childCount]. */
+    public val cleanupCount: Int
+        get() = Runtime.locked { cleanups.size }
+
+    /** How many computations belong directly to this owner. See [childCount]. */
+    public val computationCount: Int
+        get() = Runtime.locked { nodes.size }
+
+    /** Whether this owner holds nothing: no children, no cleanups, no computations. */
+    public val isEmpty: Boolean
+        get() = Runtime.locked { children.isEmpty() && cleanups.isEmpty() && nodes.isEmpty() }
+
     internal fun child(): Owner? = Runtime.locked {
         if (disposed) return@locked null
 
