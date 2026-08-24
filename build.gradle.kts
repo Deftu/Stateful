@@ -20,7 +20,6 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_1_8)
         }
 
-        withJava()
         withSourcesJar()
     }
 
@@ -64,12 +63,6 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-            }
-        }
-
-        val jvmMain by getting {
-            dependencies {
-                implementation(kotlin("reflect"))
             }
         }
 

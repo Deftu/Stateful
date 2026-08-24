@@ -1,5 +1,8 @@
 # Stateful
 
+> [!NOTE]
+> This README is outdated and does not yet cover the reworked API.
+
 [![wakatime](https://wakatime.com/badge/user/25be8ed5-7461-4fcf-93f7-0d88a7692cca/project/018c9cc0-7f56-4cb1-b257-8fd5f81573b6.svg)](https://wakatime.com/badge/user/25be8ed5-7461-4fcf-93f7-0d88a7692cca/project/018c9cc0-7f56-4cb1-b257-8fd5f81573b6)
 
 ---

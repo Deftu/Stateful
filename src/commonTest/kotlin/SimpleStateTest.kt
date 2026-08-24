@@ -1,10 +1,9 @@
-import dev.deftu.stateful.utils.mutableStateOf
-import dev.deftu.stateful.utils.stateOf
+import dev.deftu.stateful.dsl.mutableStateOf
+import dev.deftu.stateful.dsl.stateOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SimpleStateTest {
-
     @Test
     fun simpleStateReturnsInitialValue() {
         val state = stateOf(10)
@@ -19,5 +18,4 @@ class SimpleStateTest {
         state.set(20)
         assertEquals(20, state.get())
     }
-
 }

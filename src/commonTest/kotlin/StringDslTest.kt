@@ -1,9 +1,13 @@
-import dev.deftu.stateful.utils.*
+import dev.deftu.stateful.dsl.stateOf
+import dev.deftu.stateful.ext.contains
+import dev.deftu.stateful.ext.endsWith
+import dev.deftu.stateful.ext.isEmpty
+import dev.deftu.stateful.ext.isNotEmpty
+import dev.deftu.stateful.ext.startsWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class StringDslTest {
-
     @Test
     fun stateStringContainsReturnsTrue() {
         val state = stateOf("Hello, world!")
@@ -143,5 +147,4 @@ class StringDslTest {
         val result = state.isNotEmpty()
         assertEquals(false, result.get())
     }
-
 }

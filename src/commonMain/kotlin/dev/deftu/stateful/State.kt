@@ -2,9 +2,14 @@
 
 package dev.deftu.stateful
 
-public abstract class State<T> : TargetStateSubscriptionAdapter<T>() {
+import dev.deftu.stateful.impl.FlatMappedState
+import dev.deftu.stateful.impl.MappedState
+import dev.deftu.stateful.impl.ZippedState
 
-    public abstract override fun get(): T
+public abstract class State<T> {
+    private val subscriptions: MutableList<ListenerSubscription> = mutableListOf()
+
+    public abstract fun get(): T
 
     public fun getOrDefault(default: T): T {
         return get() ?: default
@@ -30,18 +35,64 @@ public abstract class State<T> : TargetStateSubscriptionAdapter<T>() {
         return get() ?: throw IllegalStateException("Value is null")
     }
 
-    public open fun notifyWithValue(value: T) {
-        listeners.forEach { listener -> listener.invoke(value) }
+    public fun subscribe(listener: StateListener<T>): Subscription {
+        val subscription = ListenerSubscription(listener)
+        subscriptions.add(subscription)
+        return subscription
+    }
+
+    public fun subscribeOnce(listener: StateListener<T>): Subscription {
+        lateinit var subscription: Subscription
+        subscription = subscribe { value ->
+            subscription.dispose()
+            listener.onChanged(value)
+        }
+
+        return subscription
     }
 
     public open fun notifyCurrent() {
-        listeners.forEach { listener -> listener.invoke(get()) }
+        val value = get()
+        var failure: Throwable? = null
+
+        // Iterate a snapshot so listeners may subscribe or dispose during dispatch, and isolate
+        // failures so one bad listener cannot starve the rest.
+        for (subscription in subscriptions.toList()) {
+            if (subscription.isDisposed) continue
+
+            try {
+                subscription.listener.onChanged(value)
+            } catch (throwable: Throwable) {
+                if (failure == null) {
+                    failure = throwable
+                } else {
+                    failure.addSuppressed(throwable)
+                }
+            }
+        }
+
+        if (failure != null) throw failure
+    }
+
+    public fun <U> map(mapper: (T) -> U): MappedState<T, U> {
+        return MappedState(this, mapper)
+    }
+
+    public fun <U> flatMap(mapper: (T) -> State<U>): FlatMappedState<T, U> {
+        return FlatMappedState(this, mapper)
+    }
+
+    public fun <U> zip(other: State<U>): ZippedState<T, U> {
+        return ZippedState(this, other)
+    }
+
+    public fun <U, R> combine(other: State<U>, transform: (T, U) -> R): State<R> {
+        return zip(other).map { (first, second) -> transform(first, second) }
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-
-        other as State<*>
+        if (other !is State<*>) return false
 
         return get() == other.get()
     }
@@ -54,4 +105,17 @@ public abstract class State<T> : TargetStateSubscriptionAdapter<T>() {
         return get()?.toString() ?: "null"
     }
 
+    private inner class ListenerSubscription(
+        val listener: StateListener<T>,
+    ) : Subscription {
+        override var isDisposed: Boolean = false
+            private set
+
+        override fun dispose() {
+            if (isDisposed) return
+
+            isDisposed = true
+            subscriptions.remove(this)
+        }
+    }
 }

@@ -11,6 +11,9 @@ on:
           - Releases
           - Snapshots
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: macos-latest
@@ -28,6 +31,8 @@ jobs:
 
       - name: Set up Gradle caching
         uses: gradle/actions/setup-gradle@v3
+        with:
+          validate-wrappers: true
 
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x ./gradlew

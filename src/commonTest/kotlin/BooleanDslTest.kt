@@ -1,12 +1,11 @@
-import dev.deftu.stateful.utils.and
-import dev.deftu.stateful.utils.not
-import dev.deftu.stateful.utils.or
-import dev.deftu.stateful.utils.stateOf
+import dev.deftu.stateful.dsl.stateOf
+import dev.deftu.stateful.ext.and
+import dev.deftu.stateful.ext.not
+import dev.deftu.stateful.ext.or
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class BooleanDslTest {
-
     @Test
     fun stateBooleanAndReturnsTrue() {
         val state = stateOf(true)
@@ -109,5 +108,4 @@ class BooleanDslTest {
         val result = !state
         assertEquals(false, result.get())
     }
-
 }

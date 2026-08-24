@@ -1,12 +1,11 @@
-import dev.deftu.stateful.utils.mutableStateBound
-import dev.deftu.stateful.utils.mutableStateOf
-import dev.deftu.stateful.utils.stateBound
-import dev.deftu.stateful.utils.stateOf
+import dev.deftu.stateful.dsl.mutableStateBound
+import dev.deftu.stateful.dsl.mutableStateOf
+import dev.deftu.stateful.dsl.stateBound
+import dev.deftu.stateful.dsl.stateOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class DelegationTest {
-
     @Test
     fun stateDelegateReturnsInitialValue() {
         val state = stateOf(10)
@@ -27,6 +26,4 @@ class DelegationTest {
         value = 20
         assertEquals(20, value)
     }
-
 }
-
