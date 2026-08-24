@@ -257,4 +257,54 @@ class OwnershipTest {
 
         root.dispose()
     }
+
+    @Test
+    fun aQueuedSchedulerHoldsTasksUntilDrained() {
+        val scheduler = Scheduler.queued()
+        val source = mutableStateOf(0)
+        val observed = mutableListOf<Int>()
+
+        val root = createOwner(scheduler)
+        runWithOwner(root) { effect { observed.add(source()) } }
+
+        assertEquals(1, scheduler.size)
+        assertEquals(emptyList<Int>(), observed)
+
+        scheduler.drain()
+        assertEquals(listOf(0), observed)
+
+        source.set(1)
+        source.set(2)
+        assertEquals(listOf(0), observed)
+        assertEquals(1, scheduler.size)
+
+        scheduler.drain()
+        assertEquals(listOf(0, 2), observed)
+
+        root.dispose()
+    }
+
+    @Test
+    fun drainingRunsTasksQueuedDuringTheDrain() {
+        val scheduler = Scheduler.queued()
+        val first = mutableStateOf(0)
+        val second = mutableStateOf(0)
+        val observed = mutableListOf<String>()
+
+        val root = createOwner(scheduler)
+        runWithOwner(root) {
+            effect { second.set(first() + 1) }
+            effect { observed.add("second=${second()}") }
+        }
+        scheduler.drain()
+        observed.clear()
+
+        first.set(10)
+        scheduler.drain()
+
+        assertEquals(listOf("second=11"), observed)
+        assertEquals(0, scheduler.size)
+
+        root.dispose()
+    }
 }

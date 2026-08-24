@@ -287,4 +287,34 @@ class ReactiveListTest {
         assertEquals(listOf(1, 2, 3), built)
         owner.dispose()
     }
+
+    @Test
+    fun aWholeListReadTracksEveryElement() {
+        val list = reactiveListOf(Row(1, "one"), Row(2, "two"))
+        var runs = 0
+        val labels = memo {
+            runs++
+            list.joinToString { it.label }
+        }
+
+        assertEquals("one, two", labels.value)
+        assertEquals(1, runs)
+
+        list[0] = Row(1, "ONE")
+
+        assertEquals("ONE, two", labels.value)
+        assertEquals(2, runs)
+    }
+
+    @Test
+    fun aFilteringReadTracksElementReplacement() {
+        val list = reactiveListOf(Row(1, "a"), Row(2, "b"))
+        val matching = memo { list.count { it.label == "a" } }
+
+        assertEquals(1, matching.value)
+
+        list[1] = Row(2, "a")
+
+        assertEquals(2, matching.value)
+    }
 }

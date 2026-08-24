@@ -69,6 +69,8 @@ internal class Node<T>(
     /** Effects only. Where the body is dispatched. */
     var scheduler: Scheduler = Scheduler.Immediate
 
+    private var dispatchPending = false
+
     val isDisposed: Boolean
         get() = Runtime.locked { state == NodeState.Disposed }
 
@@ -256,9 +258,27 @@ internal class Node<T>(
         }
     }
 
-    /** Hands the body to this effect's scheduler. Assumes the lock is **not** held. */
+    /**
+     * Hands the body to this effect's scheduler. Assumes the lock is **not** held.
+     *
+     * A second dispatch while one is still pending is dropped. Under a deferring scheduler, ten
+     * writes before a drain would otherwise queue ten runs of the same effect, every one of them
+     * reading the same final value — coalescing them is what the scheduler is for. The flag clears
+     * before the body runs, so a write from inside the body still schedules the next run.
+     */
     fun dispatch() {
-        scheduler.schedule { runBody() }
+        val shouldDispatch = Runtime.locked {
+            if (dispatchPending) return@locked false
+
+            dispatchPending = true
+            true
+        }
+        if (!shouldDispatch) return
+
+        scheduler.schedule {
+            Runtime.locked { dispatchPending = false }
+            runBody()
+        }
     }
 
     fun dispose() {
