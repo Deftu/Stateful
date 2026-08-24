@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 }
 
 include("coroutines")
+include("elementa")

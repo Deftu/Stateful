@@ -162,6 +162,16 @@ public fun <T> createRoot(scheduler: Scheduler = Scheduler.Immediate, block: (Ow
 public fun createOwner(scheduler: Scheduler = Scheduler.Immediate): Owner = Owner(scheduler)
 
 /**
+ * The owner computations created on this thread would attach to, or null outside any.
+ *
+ * Adapters need this. A bridge that registers a foreign subscription has to know whether there
+ * is a lifetime to unregister it, and warning at construction is far better than leaking
+ * silently — but the tracking context itself is internal, so without this an adapter in another
+ * module cannot ask.
+ */
+public fun currentOwner(): Owner? = tracking.owner
+
+/**
  * Runs [block] with [owner] as the enclosing lifetime.
  *
  * The current owner is thread-local and does not survive between callbacks, so this is how a
