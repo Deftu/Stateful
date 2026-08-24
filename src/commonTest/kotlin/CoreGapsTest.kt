@@ -1,4 +1,4 @@
-import dev.deftu.stateful.Diagnostics
+import dev.deftu.stateful.StateWarnings
 import dev.deftu.stateful.Scheduler
 import dev.deftu.stateful.dsl.createOwner
 import dev.deftu.stateful.dsl.createRoot
@@ -99,15 +99,15 @@ class CoreGapsTest {
     @Test
     fun anOrphanedEffectReportsThroughTheWarningHook() {
         val warnings = mutableListOf<String>()
-        val previous = Diagnostics.onWarning
-        Diagnostics.onWarning = { message -> warnings.add(message) }
+        val previous = StateWarnings.handler
+        StateWarnings.handler = { message -> warnings.add(message) }
 
         try {
             val source = mutableStateOf(0)
             val handle = effect { source() }
             handle.dispose()
         } finally {
-            Diagnostics.onWarning = previous
+            StateWarnings.handler = previous
         }
 
         assertEquals(1, warnings.size)
@@ -117,13 +117,13 @@ class CoreGapsTest {
     @Test
     fun aCleanupOutsideAnyOwnerWarnsRatherThanThrowing() {
         val warnings = mutableListOf<String>()
-        val previous = Diagnostics.onWarning
-        Diagnostics.onWarning = { message -> warnings.add(message) }
+        val previous = StateWarnings.handler
+        StateWarnings.handler = { message -> warnings.add(message) }
 
         try {
             onCleanup { }
         } finally {
-            Diagnostics.onWarning = previous
+            StateWarnings.handler = previous
         }
 
         assertEquals(1, warnings.size)

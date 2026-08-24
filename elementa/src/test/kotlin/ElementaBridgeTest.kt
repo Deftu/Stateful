@@ -1,4 +1,4 @@
-import dev.deftu.stateful.Diagnostics
+import dev.deftu.stateful.StateWarnings
 import dev.deftu.stateful.dsl.createRoot
 import dev.deftu.stateful.dsl.effect
 import dev.deftu.stateful.dsl.memo
@@ -155,13 +155,13 @@ class ElementaBridgeTest {
     @Test
     fun bridgingOutsideARootWarns() {
         val warnings = mutableListOf<String>()
-        val previous = Diagnostics.onWarning
-        Diagnostics.onWarning = { message -> warnings.add(message) }
+        val previous = StateWarnings.handler
+        StateWarnings.handler = { message -> warnings.add(message) }
 
         try {
             elementaMutableStateOf(1).asStatefulState()
         } finally {
-            Diagnostics.onWarning = previous
+            StateWarnings.handler = previous
         }
 
         assertTrue(warnings.any { it.contains("asStatefulState") }, warnings.toString())

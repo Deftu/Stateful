@@ -1,6 +1,6 @@
 package dev.deftu.stateful.elementa
 
-import dev.deftu.stateful.Diagnostics
+import dev.deftu.stateful.StateWarnings
 import dev.deftu.stateful.MutableState
 import dev.deftu.stateful.Owner
 import dev.deftu.stateful.Scheduler
@@ -108,7 +108,7 @@ public fun ReferenceHolder.createStatefulOwner(scheduler: Scheduler = Scheduler.
 
 private fun warnWithoutOwner(what: String) {
     if (currentOwner() == null) {
-        Diagnostics.onWarning(
+        StateWarnings.handler(
             "$what called outside of createRoot; nothing will unregister the Elementa side",
         )
     }

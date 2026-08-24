@@ -32,6 +32,25 @@ licence, build configuration — stays out of `.agents/` and gets committed norm
   before a closing brace. This applies to every block — class bodies, functions,
   `kotlin { }`, `tasks { }`. Blank lines separate things; a brace already does that
 
+### Naming
+
+Follow the conventions the sibling libraries already use — Evocation, krossbar, outcome, textile.
+They are consistent with each other and this project should not be the exception.
+
+- **Name the thing, with its domain word.** `EventBus`, `EventBroker`, `EventSubscriber`,
+  `TextRenderer`, `DispatchStrategy`, `Outcome`. Here: `StateGraph`, `StateNode`, `StateWarnings`,
+  `StateListener`, `Scheduler`, `Owner`.
+- **No generic infrastructure nouns.** `Runtime`, `Diagnostics`, `Manager`, `Helper`, `Util`,
+  `Context` and `Handler` say nothing about what the type is for, and every project has one. A
+  reader should be able to guess what a class does from its name alone.
+- **Machinery lives in `internal/`**, matching Evocation. Public API sits at the package root or in
+  a purposeful subpackage — `dsl/`, `ext/`, `collections/`.
+- **Extension files are `<Type>Extensions.kt`**, matching outcome's `OutcomeExtensions.kt` and
+  `HttpClientExtensions.kt`. Here: `StateExtensions.kt`.
+- **Platform actuals are `<File>.<target>.kt`** — `StateTracking.jvm.kt`, `StateTracking.js.kt` —
+  matching Evocation's `EventBus.jvm.kt`.
+- **Modules are `<library>-<adapter>`**, published as `dev.deftu:stateful-coroutines` and so on.
+
 ### Targets
 
 | Group    | Targets                                                          |
@@ -41,27 +60,29 @@ licence, build configuration — stays out of `.agents/` and gets committed norm
 | Desktop  | `linuxX64`, `mingwX64`, `macosX64`, `macosArm64`                  |
 | Apple    | `iosArm64`, `iosSimulatorArm64`, `tvosArm64`, `tvosX64`, `tvosSimulatorArm64`, `watchosArm64`, `watchosX64`, `watchosSimulatorArm64` |
 
-Kit's multiplatform convention brings up the JVM, web and desktop rows from the `kit.kmp.*`
-properties in `gradle.properties`. The Apple row is declared by hand in `build.gradle.kts`,
-because the convention's native set stops at desktop.
+**Every module declares its own targets.** `kit.kmp.native` is off, because it was global and
+Kit was adding a desktop target to an adapter whose dependency does not publish for it. Adapters
+cover less than core where their own dependency does — `stateful-compose` has no Intel macOS,
+tvOS or watchOS, and needs Java 11 rather than 8.
 
-Both JS targets generate TypeScript definitions, so a change to a public signature is a
-change to the emitted `.d.ts` as well.
+Both JS targets generate TypeScript definitions, so a change to a public signature is a change
+to the emitted `.d.ts` as well.
 
 ### Source layout
 
 | Path                                | Contents                                                      |
 | ----------------------------------- | ------------------------------------------------------------- |
-| `commonMain/.../stateful`           | The API surface: `State`, `MutableState`, `StateListener`, `Subscription`, `Disposable` |
-| `commonMain/.../stateful/impl`      | Concrete states: `SimpleState`, `SimpleMutableState`, `MappedState`, `ZippedState`, `FlatMappedState` |
-| `commonMain/.../stateful/dsl`       | Factories (`stateOf`, `mutableStateOf`, `zippedStateOf`, `combineStateOf`) and property delegates |
+| `commonMain/.../stateful`           | The API surface: `State`, `MutableState`, `Owner`, `Scheduler`, `Equality`, `StateListener`, `Subscription`, `Disposable`, `StateWarnings`, `StateExtensions` |
+| `commonMain/.../stateful/internal`  | The machinery: `StateGraph` (lock, queue, flush), `StateNode` (the graph node), `StateTracking` (thread-local context), `Warnings` |
+| `commonMain/.../stateful/dsl`       | Factories and delegates: `mutableStateOf`, `memo`, `derivedStateOf`, `effect`, `createRoot`, `createOwner`, `runWithOwner`, `onCleanup`, `batch`, `untracked` |
+| `commonMain/.../stateful/collections` | `ReactiveList`, `ReactiveMap`, `ReactiveSet`, `ListChange`, `mapKeyed` |
 | `commonMain/.../stateful/ext`       | Extensions per value type: `Booleans`, `Strings`, `Pairs`, `Triples` |
-| `jvmMain/.../stateful/ext`          | `Colors` — the one extension that needs a JVM type (`java.awt.Color`) |
-| `commonTest`                        | All tests, flat, no package                                    |
+| `jvmMain/.../stateful/ext`          | `Colors` — the one extension needing a JVM type (`java.awt.Color`) |
+| `commonTest`                        | Tests, flat, no package                                        |
+| `jvmTest`                           | JVM-only tests, currently the concurrency stress suite         |
 
-Only the base classes live in the root package. An implementation goes in `impl/`, a
-factory in `dsl/`, an extension on a value type in `ext/`.
-
+Adapters are separate modules: `coroutines/`, `elementa/`, `compose/`, `svelte/`, `react/`.
+`benchmarks/` is a JMH module, not published and not wired into `build`.
 ## Commands
 
 From the root:
@@ -70,6 +91,9 @@ From the root:
 - **Tests only, every target:** `./gradlew allTests`
 - **One target:** `./gradlew jvmTest` · `./gradlew jsTest` · `./gradlew mingwX64Test`
 - **One test:** `./gradlew jvmTest --tests "SubscriptionTest.subscribeReceivesEveryChange"`
+- **Benchmarks:** `./gradlew :benchmarks:jmh` — not wired into `build`, run deliberately. Takes
+  several minutes: three forks, because one cannot separate a real change from JVM-to-JVM variance
+  and the differences that matter are single-digit nanoseconds
 - **Publish:** `./gradlew publishAllPublicationsToDeftuSnapshotsRepository` (or
   `...DeftuReleasesRepository`) — normally run from the Release workflow, not by hand
 
@@ -85,26 +109,34 @@ A toolchain bump fails `kotlinStoreYarnLock` until you run `./gradlew kotlinUpgr
 
 ## Design notes
 
-- `State` owns its own subscriber list. Subscribing hands back a `Subscription`, and
-  disposing it is the only way to stop listening — there is no `unsubscribe(listener)`,
-  because identity comparison on lambdas is not something a caller can rely on.
-- `set` compares against the current value and returns early when they are equal. Listeners
-  fire on change, not on assignment.
-- `notifyCurrent` iterates a snapshot of the subscriber list, so a listener may subscribe
-  or dispose during dispatch without a concurrent-modification failure. A listener that
-  throws does not starve the rest: the first failure is rethrown after the loop with the
-  others attached via `addSuppressed`.
-- Derived states (`MappedState`, `ZippedState`, `FlatMappedState`) subscribe to their
-  sources on construction, which means they hold their sources alive. They are `Disposable`
-  for that reason — a caller that drops one without disposing it leaks the subscription.
-- `FlatMappedState` swaps its inner subscription each time the outer value changes. The
-  inner state is transient; the outer one is not.
-- `MappedState.rebind` and `ZippedState.rebindFirst`/`rebindSecond` re-point a derived state
-  at a new source in place, so a long-lived binding does not have to be torn down and
-  rebuilt by every consumer.
-- `FlatMappedState.isDisposed` reports only the source subscription, where `ZippedState` ANDs
-  both of its own. Already known — fix it or leave it, but do not re-report it.
+The model is pull-based. A write marks; a read resolves. That one sentence explains most of what
+follows.
 
+- **`state()` tracks, `state.value` does not.** A tracked read mutates the dependency graph, so
+  it is a function; an untracked read is plain data access, so it is a property. The rule extends
+  to terminal reads: `getOrDefault` and friends are functions, so they track.
+- **Compose inverts this.** Compose's `.value` is the tracked read. A habit carried across
+  compiles cleanly and silently never updates. Say so wherever someone might arrive.
+- **Nodes have four states** — Clean, Check, Dirty, Disposed — and `mark` only ever raises. Check
+  is what stops a write recomputing a whole subgraph: the closure is marked cheaply, and only
+  paths whose values actually changed recompute.
+- **Only effects are queued, and on Check as well as Dirty.** An effect is where a pull starts.
+  Memos are never queued, which is what makes an unobserved memo cost nothing.
+- **Memo bodies run under the lock; effect bodies do not.** A memo must be pure, cheap, and take
+  no other lock — a foreign lock under the graph lock is a real deadlock, not a slowdown.
+- **Effects are dispatched through a `Scheduler`,** every run including the first, so an adapter
+  can put them on the thread it needs. Dispatch coalesces, and coalescing happens *before* the
+  dirty state is consumed — the other order loses writes outright.
+- **The flush re-entrancy guard is per-thread.** Shared, one thread's flush cancels another's and
+  strands its effects. This was measured: fifty writes produced thirty-three runs.
+- **Lifetimes are explicit, not garbage-collected.** Every effect belongs to an `Owner`; disposing
+  one tears down its subtree depth-first with cleanups in reverse creation order. Elementa uses
+  weak references for this and it does not port — common Kotlin has none.
+- **An effect may read state that outlives it, never state that dies first.** Not enforceable;
+  checked in review.
+- **Reactive list slots are positional,** and values shift through them, so `list[i]` means
+  whatever is at `i` now. An indexed read registers on the structure signal too, so a structural
+  edit wakes every positional reader — `mapKeyed` is the escape for list-shaped UI.
 ## Conventions
 
 - No dependencies in `commonMain`. If something seems to need one, it belongs in a consumer,

@@ -1,6 +1,6 @@
-package dev.deftu.stateful.core
+package dev.deftu.stateful.internal
 
-import dev.deftu.stateful.Diagnostics
+import dev.deftu.stateful.StateWarnings
 
 /**
  * Reports a probable misuse that is not fatal enough to throw for.
@@ -9,5 +9,5 @@ import dev.deftu.stateful.Diagnostics
  * worse than the mistake itself, so these are warnings.
  */
 internal fun warn(message: String) {
-    Diagnostics.onWarning(message)
+    StateWarnings.handler(message)
 }

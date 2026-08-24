@@ -3,7 +3,7 @@ package dev.deftu.stateful.collections
 import dev.deftu.stateful.MutableState
 import dev.deftu.stateful.Owner
 import dev.deftu.stateful.State
-import dev.deftu.stateful.core.tracking
+import dev.deftu.stateful.internal.tracking
 import dev.deftu.stateful.dsl.effect
 import dev.deftu.stateful.dsl.mutableStateOf
 import dev.deftu.stateful.dsl.onCleanup

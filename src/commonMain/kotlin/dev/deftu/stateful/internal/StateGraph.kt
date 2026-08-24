@@ -1,4 +1,4 @@
-package dev.deftu.stateful.core
+package dev.deftu.stateful.internal
 
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
@@ -15,34 +15,35 @@ import kotlinx.atomicfu.locks.synchronized
  * Reentrancy is required, not incidental — resolving a memo reads other states while already
  * holding the lock.
  */
-internal object Runtime {
+internal object StateGraph {
     private val lock = SynchronizedObject()
 
     // All guarded by `lock`.
-    private val pending = mutableListOf<Node<*>>()
+    private val pending = mutableListOf<StateNode<*>>()
     private var batchDepth = 0
-    private var flushing = false
 
     inline fun <T> locked(block: () -> T): T = synchronized(lock) { block() }
 
     /** Assumes the lock is held. */
-    fun enqueue(node: Node<*>) {
+    fun enqueue(node: StateNode<*>) {
         if (!pending.contains(node)) pending.add(node)
     }
 
     /**
      * Resolves pending effects and dispatches their bodies with the lock released.
      *
-     * Safe to call from anywhere; re-entrant calls return immediately and let the outermost call
-     * drain the queue, so an effect that writes a source does not recurse into a second flush.
+     * Safe to call from anywhere. A re-entrant call on the same thread returns immediately and lets
+     * the outermost one drain the queue, so an effect that writes a source does not recurse into a
+     * second flush. The guard is per-thread: two threads may drain concurrently, each taking whole
+     * batches out of the queue under the lock, because a shared guard would let one thread's flush
+     * silently cancel another's and strand its effects.
      */
     fun flush() {
-        val shouldFlush = locked {
-            if (batchDepth > 0 || flushing) return@locked false
-            flushing = true
-            true
-        }
-        if (!shouldFlush) return
+        val context = tracking
+        if (context.flushing) return
+        if (locked { batchDepth > 0 }) return
+
+        context.flushing = true
 
         var failure: Throwable? = null
         try {
@@ -52,7 +53,20 @@ internal object Runtime {
 
                     val taken = pending.toList()
                     pending.clear()
-                    taken.filter { node -> node.takeIfDirty() }
+
+                    val ready = mutableListOf<StateNode<*>>()
+                    for (node in taken) {
+                        // A node whose dispatch is in flight keeps its dirty state and its place in
+                        // the queue. Consuming that state here and then dropping the run as a
+                        // duplicate would lose the change outright.
+                        if (node.isDispatchPending) pending.add(node) else if (node.takeIfDirty()) ready.add(node)
+                    }
+
+                    // Null, not an empty list. Everything taken may have been deferred because a
+                    // dispatch is in flight, and returning an empty batch would spin: the deferred
+                    // nodes go straight back into the queue and the next turn takes them again.
+                    // The flush that runs after each body picks them up instead.
+                    if (ready.isEmpty()) null else ready
                 }
                 if (batch == null) break
 
@@ -65,7 +79,7 @@ internal object Runtime {
                 }
             }
         } finally {
-            locked { flushing = false }
+            context.flushing = false
         }
 
         if (failure != null) throw failure

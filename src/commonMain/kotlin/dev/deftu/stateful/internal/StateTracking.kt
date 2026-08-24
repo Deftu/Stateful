@@ -1,4 +1,4 @@
-package dev.deftu.stateful.core
+package dev.deftu.stateful.internal
 
 import dev.deftu.stateful.Owner
 
@@ -10,9 +10,9 @@ import dev.deftu.stateful.Owner
  * different nodes at once. On JS and wasm there is only ever one thread, so the actual is a
  * plain global and costs nothing.
  */
-internal class Tracking {
+internal class StateTracking {
     /** The computation whose dependencies tracked reads are currently being collected into. */
-    var computation: Node<*>? = null
+    var computation: StateNode<*>? = null
 
     /** Set by `untracked { }`. Suppresses dependency registration without unsetting [computation]. */
     var suppressed: Boolean = false
@@ -20,7 +20,15 @@ internal class Tracking {
     /** The owner that computations created on this thread attach to. */
     var owner: Owner? = null
 
-    inline fun <T> withComputation(node: Node<*>?, block: () -> T): T {
+    /**
+     * Whether this thread is already inside a flush.
+     *
+     * Re-entrancy is a per-thread property. A single shared flag would make one thread's flush
+     * silently cancel another's, leaving that thread's effects queued and undispatched.
+     */
+    var flushing: Boolean = false
+
+    inline fun <T> withComputation(node: StateNode<*>?, block: () -> T): T {
         val previous = computation
         computation = node
         try {
@@ -51,5 +59,5 @@ internal class Tracking {
     }
 }
 
-/** The calling thread's [Tracking]. */
-internal expect val tracking: Tracking
+/** The calling thread's [StateTracking]. */
+internal expect val tracking: StateTracking

@@ -1,4 +1,4 @@
-package dev.deftu.stateful.core
+package dev.deftu.stateful.internal
 
 import dev.deftu.stateful.Equality
 import dev.deftu.stateful.Owner
@@ -43,7 +43,7 @@ internal val UNSET: Any = Any()
  * exception: it deliberately runs user effect code with the lock released, reacquiring it only to
  * swap the dependency set.
  */
-internal class Node<T>(
+internal class StateNode<T>(
     val kind: NodeKind,
     private var state: NodeState,
     private val equality: Equality<T>,
@@ -52,11 +52,20 @@ internal class Node<T>(
 ) {
     private var stored: Any? = stored
 
-    private val dependencies = mutableListOf<Node<*>>()
-    private val dependents = mutableListOf<Node<*>>()
+    private val dependencies = mutableListOf<StateNode<*>>()
+    private val dependents = mutableListOf<StateNode<*>>()
 
-    /** Dependencies seen during the run in progress. Non-null only while recomputing. */
-    private var collecting: MutableSet<Node<*>>? = null
+    /**
+     * How many dependencies of the run in progress have matched the previous run positionally.
+     *
+     * `-1` when no run is in progress. A computation almost always reads the same dependencies in
+     * the same order, so matching by position costs an identity comparison and no allocation. Only
+     * a computation whose dependencies actually changed pays for [collectOverflow].
+     */
+    private var collectIndex: Int = -1
+
+    /** Allocated only when a run diverges from the previous dependency order. */
+    private var collectOverflow: MutableSet<StateNode<*>>? = null
 
     /**
      * Effects only: the owner that computations created inside the body belong to.
@@ -71,11 +80,15 @@ internal class Node<T>(
 
     private var dispatchPending = false
 
+    /** Whether a dispatch for this effect is already in flight. Assumes the lock is held. */
+    val isDispatchPending: Boolean
+        get() = dispatchPending
+
     val isDisposed: Boolean
-        get() = Runtime.locked { state == NodeState.Disposed }
+        get() = StateGraph.locked { state == NodeState.Disposed }
 
     /** Resolves, then registers the currently running computation as a dependent. */
-    fun readTracked(): T = Runtime.locked {
+    fun readTracked(): T = StateGraph.locked {
         // Resolve before linking. If this node is dirty, resolving marks its dependents dirty —
         // and a dependent added first would be marked without ever having seen the old value.
         val value = resolveAndRead()
@@ -90,7 +103,7 @@ internal class Node<T>(
     }
 
     /** Resolves and reads without touching the graph. */
-    fun readUntracked(): T = Runtime.locked { resolveAndRead() }
+    fun readUntracked(): T = StateGraph.locked { resolveAndRead() }
 
     @Suppress("UNCHECKED_CAST")
     private fun resolveAndRead(): T {
@@ -99,18 +112,75 @@ internal class Node<T>(
         }
 
         val value = stored
-        check(value !== UNSET) { "Node read before it held a value" }
+        check(value !== UNSET) {
+            "A memo read its own value while computing it. This is usually a lambda closing over a " +
+            "`var` that is reassigned to the memo itself, so the memo ends up depending on itself."
+        }
         return value as T
     }
 
-    private fun link(dependency: Node<*>) {
-        val seen = collecting
-        if (seen != null && !seen.add(dependency)) return
+    private fun link(dependency: StateNode<*>) {
+        if (collectIndex < 0) {
+            if (!dependencies.contains(dependency)) {
+                dependencies.add(dependency)
+                dependency.dependents.add(this)
+            }
+
+            return
+        }
+
+        if (collectOverflow == null) {
+            if (collectIndex < dependencies.size && dependencies[collectIndex] === dependency) {
+                collectIndex++
+                return
+            }
+
+            val seen = LinkedHashSet<StateNode<*>>(dependencies.size + 4)
+            for (index in 0 until collectIndex) seen.add(dependencies[index])
+            collectOverflow = seen
+        }
+
+        val seen = collectOverflow ?: return
+        if (!seen.add(dependency)) return
 
         if (!dependencies.contains(dependency)) {
             dependencies.add(dependency)
             dependency.dependents.add(this)
         }
+    }
+
+    /**
+     * Drops dependencies the finished run did not read, and ends collection.
+     *
+     * On the fast path the run matched a prefix of the previous set, so everything past that prefix
+     * is stale and nothing needed to be recorded to know it.
+     */
+    private fun finishCollecting() {
+        // An effect that writes the state it reads re-enters its own body, and the inner run ends
+        // collection before the outer one unwinds. Nothing is left to prune at that point.
+        if (collectIndex < 0) return
+
+        val overflow = collectOverflow
+        if (overflow == null) {
+            while (dependencies.size > collectIndex) {
+                val stale = dependencies.removeAt(dependencies.size - 1)
+                stale.dependents.remove(this)
+            }
+        } else {
+            var index = 0
+            while (index < dependencies.size) {
+                val dependency = dependencies[index]
+                if (dependency in overflow) {
+                    index++
+                } else {
+                    dependencies.removeAt(index)
+                    dependency.dependents.remove(this)
+                }
+            }
+        }
+
+        collectIndex = -1
+        collectOverflow = null
     }
 
     /** Source only. Returns true when the write changed anything. */
@@ -122,8 +192,11 @@ internal class Node<T>(
         if (previous !== UNSET && equality.areEqual(previous as T, newValue)) return false
 
         stored = newValue
-        for (dependent in dependents.toList()) {
-            dependent.markDirty()
+
+        // Marking never mutates the list being walked, so the defensive copy these loops used to
+        // make was pure allocation on the hottest write path.
+        for (index in dependents.indices) {
+            dependents[index].markDirty()
         }
 
         return true
@@ -138,22 +211,22 @@ internal class Node<T>(
         // Check. Memos are never queued, which is what makes an unobserved memo cost nothing —
         // it stays dirty until something actually reads it.
         if (kind == NodeKind.Effect) {
-            Runtime.enqueue(this)
+            StateGraph.enqueue(this)
         }
     }
 
     private fun markDirty() {
         mark(NodeState.Dirty)
-        for (dependent in dependents.toList()) {
-            dependent.markCheck()
+        for (index in dependents.indices) {
+            dependents[index].markCheck()
         }
     }
 
     private fun markCheck() {
         if (state != NodeState.Clean) return
         mark(NodeState.Check)
-        for (dependent in dependents.toList()) {
-            dependent.markCheck()
+        for (index in dependents.indices) {
+            dependents[index].markCheck()
         }
     }
 
@@ -167,15 +240,19 @@ internal class Node<T>(
         if (state == NodeState.Clean || state == NodeState.Disposed) return
 
         if (state == NodeState.Check) {
-            for (dependency in dependencies.toList()) {
-                dependency.resolve()
+            // Indexed rather than copied, and re-reading the size each turn, because resolving a
+            // dependency can prune this node's own list.
+            var index = 0
+            while (index < dependencies.size) {
+                dependencies[index].resolve()
                 if (state == NodeState.Dirty) break
+                index++
             }
         }
 
         val wasDirty = state == NodeState.Dirty
         if (kind == NodeKind.Effect) {
-            // Leave the state alone: Runtime.flush reads it to decide whether to dispatch.
+            // Leave the state alone: StateGraph.flush reads it to decide whether to dispatch.
             if (!wasDirty) state = NodeState.Clean
             return
         }
@@ -189,32 +266,31 @@ internal class Node<T>(
     private fun recompute() {
         val compute = compute ?: return
 
-        val seen = LinkedHashSet<Node<*>>()
-        collecting = seen
+        collectIndex = 0
+        collectOverflow = null
 
         val newValue = try {
             tracking.withComputation(this) { compute() }
-        } finally {
-            collecting = null
+        } catch (throwable: Throwable) {
+            collectIndex = -1
+            collectOverflow = null
+            throw throwable
         }
 
-        if (state == NodeState.Disposed) return
-        pruneDependencies(seen)
+        if (state == NodeState.Disposed) {
+            collectIndex = -1
+            collectOverflow = null
+            return
+        }
+
+        finishCollecting()
 
         val previous = stored
         if (previous === UNSET || !equality.areEqual(previous as T, newValue)) {
             stored = newValue
-            for (dependent in dependents.toList()) {
-                dependent.mark(NodeState.Dirty)
+            for (index in dependents.indices) {
+                dependents[index].mark(NodeState.Dirty)
             }
-        }
-    }
-
-    private fun pruneDependencies(seen: Set<Node<*>>) {
-        val stale = dependencies.filter { dependency -> dependency !in seen }
-        for (dependency in stale) {
-            dependencies.remove(dependency)
-            dependency.dependents.remove(this)
         }
     }
 
@@ -237,23 +313,35 @@ internal class Node<T>(
      */
     fun runBody() {
         val compute = compute ?: return
-        if (Runtime.locked { state == NodeState.Disposed }) return
+        if (StateGraph.locked { state == NodeState.Disposed }) return
 
         val scope = scope
         scope?.reset()
         if (scope != null && scope.isDisposed) return
 
-        val seen = LinkedHashSet<Node<*>>()
-        Runtime.locked { collecting = seen }
+        StateGraph.locked {
+            // Clearing here rather than at schedule time is what stops a redundant re-run. A write
+            // that lands while a dispatch is queued marks the node again, and this run is about to
+            // read that value anyway; only a write arriving *during* the body should schedule
+            // another run, and those mark the node after this point.
+            if (state != NodeState.Disposed) state = NodeState.Clean
+
+            collectIndex = 0
+            collectOverflow = null
+        }
 
         try {
             tracking.withOwner(scope) {
                 tracking.withComputation(this) { compute() }
             }
         } finally {
-            Runtime.locked {
-                collecting = null
-                if (state != NodeState.Disposed) pruneDependencies(seen)
+            StateGraph.locked {
+                if (state == NodeState.Disposed) {
+                    collectIndex = -1
+                    collectOverflow = null
+                } else {
+                    finishCollecting()
+                }
             }
         }
     }
@@ -261,41 +349,44 @@ internal class Node<T>(
     /**
      * Hands the body to this effect's scheduler. Assumes the lock is **not** held.
      *
-     * A second dispatch while one is still pending is dropped. Under a deferring scheduler, ten
-     * writes before a drain would otherwise queue ten runs of the same effect, every one of them
-     * reading the same final value — coalescing them is what the scheduler is for. The flag clears
-     * before the body runs, so a write from inside the body still schedules the next run.
+     * Callers must check [isDispatchPending] first and leave the node queued if one is in flight.
+     * Coalescing has to happen *before* the dirty state is consumed: a run dropped after
+     * [takeIfDirty] has already marked the node clean is a change lost for good, not a change
+     * merged into the pending run.
+     *
+     * The flag clears before the body runs, and the flush queue is drained again afterwards, so a
+     * write that arrives mid-run is picked up rather than stranded.
      */
     fun dispatch() {
-        val shouldDispatch = Runtime.locked {
-            if (dispatchPending) return@locked false
-
-            dispatchPending = true
-            true
-        }
-        if (!shouldDispatch) return
+        StateGraph.locked { dispatchPending = true }
 
         scheduler.schedule {
-            Runtime.locked { dispatchPending = false }
-            runBody()
+            StateGraph.locked { dispatchPending = false }
+            try {
+                runBody()
+            } finally {
+                StateGraph.flush()
+            }
         }
     }
 
     fun dispose() {
-        Runtime.locked {
+        StateGraph.locked {
             if (state == NodeState.Disposed) return@locked
 
             state = NodeState.Disposed
-            for (dependency in dependencies.toList()) {
-                dependency.dependents.remove(this)
+            for (index in dependencies.indices) {
+                dependencies[index].dependents.remove(this)
             }
             dependencies.clear()
 
-            for (dependent in dependents.toList()) {
-                dependent.dependencies.remove(this)
+            for (index in dependents.indices) {
+                dependents[index].dependencies.remove(this)
             }
             dependents.clear()
-            collecting = null
+
+            collectIndex = -1
+            collectOverflow = null
         }
     }
 }

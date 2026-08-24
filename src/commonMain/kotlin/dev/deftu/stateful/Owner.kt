@@ -1,7 +1,7 @@
 package dev.deftu.stateful
 
-import dev.deftu.stateful.core.Node
-import dev.deftu.stateful.core.Runtime
+import dev.deftu.stateful.internal.StateNode
+import dev.deftu.stateful.internal.StateGraph
 
 /**
  * The lifetime a set of computations belongs to.
@@ -17,11 +17,11 @@ public class Owner internal constructor(
 ) : Disposable {
     private val children = mutableListOf<Owner>()
     private val cleanups = mutableListOf<() -> Unit>()
-    private val nodes = mutableListOf<Node<*>>()
+    private val nodes = mutableListOf<StateNode<*>>()
     private var disposed = false
 
     override val isDisposed: Boolean
-        get() = Runtime.locked { disposed }
+        get() = StateGraph.locked { disposed }
 
     /**
      * How many child owners this owner holds.
@@ -31,21 +31,21 @@ public class Owner internal constructor(
      * what an owner is holding, that failure cannot be tested from outside this module.
      */
     public val childCount: Int
-        get() = Runtime.locked { children.size }
+        get() = StateGraph.locked { children.size }
 
     /** How many cleanups are registered on this owner. See [childCount]. */
     public val cleanupCount: Int
-        get() = Runtime.locked { cleanups.size }
+        get() = StateGraph.locked { cleanups.size }
 
     /** How many computations belong directly to this owner. See [childCount]. */
     public val computationCount: Int
-        get() = Runtime.locked { nodes.size }
+        get() = StateGraph.locked { nodes.size }
 
     /** Whether this owner holds nothing: no children, no cleanups, no computations. */
     public val isEmpty: Boolean
-        get() = Runtime.locked { children.isEmpty() && cleanups.isEmpty() && nodes.isEmpty() }
+        get() = StateGraph.locked { children.isEmpty() && cleanups.isEmpty() && nodes.isEmpty() }
 
-    internal fun child(): Owner? = Runtime.locked {
+    internal fun child(): Owner? = StateGraph.locked {
         if (disposed) return@locked null
 
         val child = Owner(scheduler)
@@ -53,15 +53,15 @@ public class Owner internal constructor(
         child
     }
 
-    internal fun register(node: Node<*>) {
-        Runtime.locked {
+    internal fun register(node: StateNode<*>) {
+        StateGraph.locked {
             if (disposed) return@locked
             nodes.add(node)
         }
     }
 
     internal fun addCleanup(block: () -> Unit) {
-        Runtime.locked {
+        StateGraph.locked {
             if (disposed) return@locked
             cleanups.add(block)
         }
@@ -75,8 +75,8 @@ public class Owner internal constructor(
      * before the next run starts.
      */
     internal fun reset() {
-        val (takenChildren, takenCleanups, takenNodes) = Runtime.locked {
-            if (disposed) return@locked Triple(emptyList<Owner>(), emptyList<() -> Unit>(), emptyList<Node<*>>())
+        val (takenChildren, takenCleanups, takenNodes) = StateGraph.locked {
+            if (disposed) return@locked Triple(emptyList<Owner>(), emptyList<() -> Unit>(), emptyList<StateNode<*>>())
 
             val snapshot = Triple(children.toList(), cleanups.toList(), nodes.toList())
             children.clear()
@@ -96,7 +96,7 @@ public class Owner internal constructor(
      * unwinding in creation order would tear down a dependency before its dependent.
      */
     override fun dispose() {
-        val (takenChildren, takenCleanups, takenNodes) = Runtime.locked {
+        val (takenChildren, takenCleanups, takenNodes) = StateGraph.locked {
             if (disposed) return@locked null
 
             disposed = true
@@ -113,7 +113,7 @@ public class Owner internal constructor(
     private fun tearDown(
         takenChildren: List<Owner>,
         takenCleanups: List<() -> Unit>,
-        takenNodes: List<Node<*>>,
+        takenNodes: List<StateNode<*>>,
     ) {
         var failure: Throwable? = null
 

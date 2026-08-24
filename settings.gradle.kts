@@ -41,3 +41,6 @@ include("elementa")
 include("compose")
 include("svelte")
 include("react")
+
+// Not published. Run deliberately with `./gradlew :benchmarks:jmh`.
+include("benchmarks")

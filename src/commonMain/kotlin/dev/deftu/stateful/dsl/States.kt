@@ -8,13 +8,13 @@ import dev.deftu.stateful.Scheduler
 import dev.deftu.stateful.State
 import dev.deftu.stateful.StateListener
 import dev.deftu.stateful.Subscription
-import dev.deftu.stateful.core.Node
-import dev.deftu.stateful.core.NodeKind
-import dev.deftu.stateful.core.NodeState
-import dev.deftu.stateful.core.Runtime
-import dev.deftu.stateful.core.UNSET
-import dev.deftu.stateful.core.tracking
-import dev.deftu.stateful.core.warn
+import dev.deftu.stateful.internal.StateNode
+import dev.deftu.stateful.internal.NodeKind
+import dev.deftu.stateful.internal.NodeState
+import dev.deftu.stateful.internal.StateGraph
+import dev.deftu.stateful.internal.UNSET
+import dev.deftu.stateful.internal.tracking
+import dev.deftu.stateful.internal.warn
 
 /**
  * Creates a writable state holding [value].
@@ -26,7 +26,7 @@ public fun <T> mutableStateOf(
     value: T,
     equality: Equality<T> = Equality.structural(),
 ): MutableState<T> {
-    return SourceState(Node(NodeKind.Source, NodeState.Clean, equality, null, value))
+    return SourceState(StateNode(NodeKind.Source, NodeState.Clean, equality, null, value))
 }
 
 /**
@@ -69,7 +69,7 @@ public fun <T> memo(
     equality: Equality<T> = Equality.structural(),
     compute: () -> T,
 ): State<T> {
-    return MemoState(Node(NodeKind.Memo, NodeState.Dirty, equality, compute, UNSET))
+    return MemoState(StateNode(NodeKind.Memo, NodeState.Dirty, equality, compute, UNSET))
 }
 
 /**
@@ -112,7 +112,7 @@ public fun effect(block: () -> Unit): Disposable {
         warn("effect created outside of createRoot; it will run until disposed by hand, which is probably a leak")
     }
 
-    val node = Node<Unit>(NodeKind.Effect, NodeState.Clean, Equality.never(), block, Unit)
+    val node = StateNode<Unit>(NodeKind.Effect, NodeState.Clean, Equality.never(), block, Unit)
     node.scheduler = owner.scheduler
     node.scope = owner.child()
     owner.register(node)
@@ -206,7 +206,7 @@ public fun onCleanup(block: () -> Unit) {
 private var orphanRootInstance: Owner? = null
 
 private fun orphanRoot(): Owner {
-    return Runtime.locked {
+    return StateGraph.locked {
         orphanRootInstance ?: Owner(Scheduler.Immediate).also { orphanRootInstance = it }
     }
 }
@@ -226,7 +226,7 @@ public fun <T> untracked(block: () -> T): T = tracking.suppressing(block)
  * those writes are held back, and each fires once no matter how many times its dependencies
  * changed inside the block. Nesting is by depth counter — only the outermost exit flushes.
  */
-public fun <T> batch(block: () -> T): T = Runtime.batch(block)
+public fun <T> batch(block: () -> T): T = StateGraph.batch(block)
 
 /** Registers [listener] for the next change only, disposing before the listener is invoked. */
 public fun <T> State<T>.subscribeOnce(listener: StateListener<T>): Subscription {
@@ -239,7 +239,7 @@ public fun <T> State<T>.subscribeOnce(listener: StateListener<T>): Subscription 
     return subscription
 }
 
-internal class SourceState<T>(private val node: Node<T>) : MutableState<T> {
+internal class SourceState<T>(private val node: StateNode<T>) : MutableState<T> {
     override fun invoke(): T = node.readTracked()
 
     override var value: T
@@ -247,8 +247,8 @@ internal class SourceState<T>(private val node: Node<T>) : MutableState<T> {
         set(value) = set(value)
 
     override fun set(value: T) {
-        val changed = Runtime.locked { node.write(value) }
-        if (changed) Runtime.flush()
+        val changed = StateGraph.locked { node.write(value) }
+        if (changed) StateGraph.flush()
     }
 
     override fun update(transform: (T) -> T) {
@@ -258,7 +258,7 @@ internal class SourceState<T>(private val node: Node<T>) : MutableState<T> {
     override fun subscribe(listener: StateListener<T>): Subscription = subscribeTo(this, listener)
 }
 
-internal class MemoState<T>(private val node: Node<T>) : State<T> {
+internal class MemoState<T>(private val node: StateNode<T>) : State<T> {
     override fun invoke(): T = node.readTracked()
 
     override val value: T
@@ -291,7 +291,7 @@ private object DisposedSubscription : Subscription {
     }
 }
 
-private class NodeDisposable(private val node: Node<*>) : Subscription {
+private class NodeDisposable(private val node: StateNode<*>) : Subscription {
     override val isDisposed: Boolean
         get() = node.isDisposed
 
@@ -302,7 +302,7 @@ private class NodeDisposable(private val node: Node<*>) : Subscription {
 
 private fun <T> subscribeTo(state: State<T>, listener: StateListener<T>): Subscription {
     var seenInitial = false
-    val node = Node<Unit>(
+    val node = StateNode<Unit>(
         NodeKind.Effect,
         NodeState.Clean,
         Equality.never(),
