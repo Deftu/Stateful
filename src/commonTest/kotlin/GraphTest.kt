@@ -1,4 +1,5 @@
 import dev.deftu.stateful.Equality
+import dev.deftu.stateful.dsl.createRoot
 import dev.deftu.stateful.dsl.effect
 import dev.deftu.stateful.dsl.memo
 import dev.deftu.stateful.dsl.mutableStateOf
@@ -204,5 +205,64 @@ class GraphTest {
 
         assertTrue(handle.isDisposed)
         assertEquals(listOf(1, 2), observed)
+    }
+
+    @Test
+    fun anEffectReadingASourceAndAMemoOverItRunsOncePerWrite() {
+        val source = mutableStateOf(1)
+        val doubled = memo { source() * 2 }
+        val observed = mutableListOf<String>()
+
+        val owner = createRoot { owner ->
+            effect { observed.add("${source()}:${doubled()}") }
+            owner
+        }
+
+        source.set(2)
+        source.set(3)
+
+        assertEquals(listOf("1:2", "2:4", "3:6"), observed)
+        owner.dispose()
+    }
+
+    @Test
+    fun readingAMemoBeforeItsSourceAlsoRunsOnce() {
+        val source = mutableStateOf(1)
+        val doubled = memo { source() * 2 }
+        val observed = mutableListOf<String>()
+
+        val owner = createRoot { owner ->
+            effect { observed.add("${doubled()}:${source()}") }
+            owner
+        }
+
+        source.set(2)
+
+        assertEquals(listOf("2:1", "4:2"), observed)
+        owner.dispose()
+    }
+
+    @Test
+    fun aChainReadAlongsideItsSourceRunsOnce() {
+        val source = mutableStateOf(1)
+        val doubled = memo { source() * 2 }
+        val quadrupled = memo { doubled() * 2 }
+        var runs = 0
+
+        val owner = createRoot { owner ->
+            effect {
+                source()
+                doubled()
+                quadrupled()
+                runs++
+            }
+            owner
+        }
+        runs = 0
+
+        source.set(2)
+
+        assertEquals(1, runs)
+        owner.dispose()
     }
 }

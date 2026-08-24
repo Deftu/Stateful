@@ -317,8 +317,15 @@ internal class StateNode<T>(
 
             val watchers = dependents
             if (watchers != null) {
+                // Whatever is reading this right now is about to receive the new value, so marking
+                // it would schedule a second run for a change it has already seen. That happens
+                // whenever a computation reads both a source and a memo derived from it: the memo
+                // recomputes inside the reader's own body.
+                val reader = tracking.computation
+
                 for (index in watchers.indices) {
-                    watchers[index].mark(NodeState.Dirty)
+                    val dependent = watchers[index]
+                    if (dependent !== reader) dependent.mark(NodeState.Dirty)
                 }
             }
         }
