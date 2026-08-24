@@ -359,14 +359,21 @@ internal class StateNode<T>(
      */
     fun dispatch() {
         StateGraph.locked { dispatchPending = true }
+        scheduler.schedule(task)
+    }
 
-        scheduler.schedule {
-            StateGraph.locked { dispatchPending = false }
-            try {
-                runBody()
-            } finally {
-                StateGraph.flush()
-            }
+    /**
+     * Built once per node rather than per dispatch.
+     *
+     * A fresh closure for every dispatch is an allocation on the path an effect-heavy consumer
+     * takes on every frame, and this one captures nothing but the node itself.
+     */
+    private val task: () -> Unit = {
+        StateGraph.locked { dispatchPending = false }
+        try {
+            runBody()
+        } finally {
+            StateGraph.flush()
         }
     }
 
