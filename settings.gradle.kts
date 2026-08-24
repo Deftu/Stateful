@@ -22,3 +22,5 @@ dependencyResolutionManagement {
     // This project declares no repositories of its own, so nothing can shadow Kit's set.
     repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
 }
+
+include("coroutines")
