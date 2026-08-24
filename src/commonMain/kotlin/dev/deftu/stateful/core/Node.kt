@@ -1,6 +1,8 @@
 package dev.deftu.stateful.core
 
 import dev.deftu.stateful.Equality
+import dev.deftu.stateful.Owner
+import dev.deftu.stateful.Scheduler
 
 internal enum class NodeKind {
     /** A manually written value. No dependencies, no compute function. */
@@ -55,6 +57,17 @@ internal class Node<T>(
 
     /** Dependencies seen during the run in progress. Non-null only while recomputing. */
     private var collecting: MutableSet<Node<*>>? = null
+
+    /**
+     * Effects only: the owner that computations created inside the body belong to.
+     *
+     * Reset before every run, so anything the previous run created — nested effects, cleanups —
+     * is torn down before the next one starts.
+     */
+    var scope: Owner? = null
+
+    /** Effects only. Where the body is dispatched. */
+    var scheduler: Scheduler = Scheduler.Immediate
 
     val isDisposed: Boolean
         get() = Runtime.locked { state == NodeState.Disposed }
@@ -224,17 +237,28 @@ internal class Node<T>(
         val compute = compute ?: return
         if (Runtime.locked { state == NodeState.Disposed }) return
 
+        val scope = scope
+        scope?.reset()
+        if (scope != null && scope.isDisposed) return
+
         val seen = LinkedHashSet<Node<*>>()
         Runtime.locked { collecting = seen }
 
         try {
-            tracking.withComputation(this) { compute() }
+            tracking.withOwner(scope) {
+                tracking.withComputation(this) { compute() }
+            }
         } finally {
             Runtime.locked {
                 collecting = null
                 if (state != NodeState.Disposed) pruneDependencies(seen)
             }
         }
+    }
+
+    /** Hands the body to this effect's scheduler. Assumes the lock is **not** held. */
+    fun dispatch() {
+        scheduler.schedule { runBody() }
     }
 
     fun dispose() {

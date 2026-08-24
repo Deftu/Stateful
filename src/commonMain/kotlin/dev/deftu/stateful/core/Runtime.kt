@@ -58,7 +58,7 @@ internal object Runtime {
 
                 for (node in batch) {
                     try {
-                        node.runBody()
+                        node.dispatch()
                     } catch (throwable: Throwable) {
                         if (failure == null) failure = throwable else failure.addSuppressed(throwable)
                     }

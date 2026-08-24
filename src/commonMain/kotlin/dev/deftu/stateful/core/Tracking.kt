@@ -1,5 +1,7 @@
 package dev.deftu.stateful.core
 
+import dev.deftu.stateful.Owner
+
 /**
  * The per-thread reactive context: which computation is currently running, and whether reads
  * are being tracked at all.
@@ -15,6 +17,9 @@ internal class Tracking {
     /** Set by `untracked { }`. Suppresses dependency registration without unsetting [computation]. */
     var suppressed: Boolean = false
 
+    /** The owner that computations created on this thread attach to. */
+    var owner: Owner? = null
+
     inline fun <T> withComputation(node: Node<*>?, block: () -> T): T {
         val previous = computation
         computation = node
@@ -22,6 +27,16 @@ internal class Tracking {
             return block()
         } finally {
             computation = previous
+        }
+    }
+
+    inline fun <T> withOwner(next: Owner?, block: () -> T): T {
+        val previous = owner
+        owner = next
+        try {
+            return block()
+        } finally {
+            owner = previous
         }
     }
 

@@ -3,6 +3,8 @@ package dev.deftu.stateful.dsl
 import dev.deftu.stateful.Disposable
 import dev.deftu.stateful.Equality
 import dev.deftu.stateful.MutableState
+import dev.deftu.stateful.Owner
+import dev.deftu.stateful.Scheduler
 import dev.deftu.stateful.State
 import dev.deftu.stateful.StateListener
 import dev.deftu.stateful.Subscription
@@ -12,6 +14,7 @@ import dev.deftu.stateful.core.NodeState
 import dev.deftu.stateful.core.Runtime
 import dev.deftu.stateful.core.UNSET
 import dev.deftu.stateful.core.tracking
+import dev.deftu.stateful.core.warn
 
 /**
  * Creates a writable state holding [value].
@@ -55,18 +58,111 @@ public fun <T> memo(
 }
 
 /**
- * Runs [block] immediately, and again whenever a state it read has changed.
+ * Runs [block] once, and again whenever a state it read has changed.
  *
- * The body runs with the runtime lock released, so it may safely block, take other locks, or
- * touch another thread.
+ * Every run — the first one included — goes through the owning root's [Scheduler] with the
+ * runtime lock released, so the body may safely block, take other locks, or touch another thread.
+ * Under [Scheduler.Immediate], the default, that means the first run happens before this function
+ * returns; under a deferring scheduler the effect has not run and has no dependencies until the
+ * scheduler gets to it.
  *
- * Dispose the returned handle to stop it. Until ownership lands, an effect runs until disposed —
- * dropping the handle leaks it.
+ * The effect belongs to the enclosing [createRoot] and dies with it. Computations created inside
+ * the body belong to the effect, and are torn down before each re-run — which is what makes
+ * [onCleanup] inside an effect meaningful.
+ *
+ * Creating an effect outside any root is almost always a leak, since nothing but the returned
+ * handle can ever stop it. That case is not fatal: the effect attaches to a process-wide root and
+ * a warning is logged naming it.
  */
 public fun effect(block: () -> Unit): Disposable {
+    val owner = tracking.owner ?: orphanRoot().also {
+        warn("effect created outside of createRoot; it will run until disposed by hand, which is probably a leak")
+    }
+
     val node = Node<Unit>(NodeKind.Effect, NodeState.Clean, Equality.never(), block, Unit)
-    node.runBody()
+    node.scheduler = owner.scheduler
+    node.scope = owner.child()
+    owner.register(node)
+
+    node.dispatch()
     return NodeDisposable(node)
+}
+
+/**
+ * Creates a lifetime for the computations made inside [block], and hands it to [block] so it can
+ * be disposed later.
+ *
+ * Disposing the owner tears down every effect and nested owner created under it, depth-first,
+ * running cleanups in reverse creation order. One root per screen or component, disposed on
+ * unmount, is the intended shape.
+ *
+ * [scheduler] applies to every effect under this root.
+ *
+ * A root created inside another root is **detached** — it is not a child, and the outer root will
+ * not dispose it. Roots are independent lifetimes by definition; nest [effect]s, not roots, when
+ * you want automatic teardown.
+ */
+public fun <T> createRoot(scheduler: Scheduler = Scheduler.Immediate, block: (Disposable) -> T): T {
+    val owner = Owner(scheduler)
+    return tracking.withOwner(owner) { block(owner) }
+}
+
+/**
+ * Creates a lifetime without entering it, for hosts that hand you callbacks instead of a scope.
+ *
+ * Ktor, Spring, a Minecraft mod and an Android `Activity` all start something in one stack frame
+ * and stop it in another, so there is no block to wrap. Store the returned [Owner] on the host
+ * object, enter it with [runWithOwner] from later callbacks, and dispose it in the host's teardown
+ * hook.
+ *
+ * The root's lifetime must be the host object's lifetime. A root that outlives its host is the
+ * leak the orphan warning describes; one that dies early leaves state that silently stops
+ * updating.
+ *
+ * A [scheduler] is usually mandatory rather than optional in a host: server frameworks call in on
+ * request threads and game clients must be touched on their own thread, and [Scheduler.Immediate]
+ * runs the body wherever the write happened.
+ */
+public fun createOwner(scheduler: Scheduler = Scheduler.Immediate): Owner = Owner(scheduler)
+
+/**
+ * Runs [block] with [owner] as the enclosing lifetime.
+ *
+ * The current owner is thread-local and does not survive between callbacks, so this is how a
+ * computation created in a later callback attaches to a root created in an earlier one.
+ *
+ * This **borrows** a lifetime, it does not create one. Computations created inside live until
+ * [owner] is disposed, not until the block returns — which is the point, and also the way to
+ * misuse it. A per-request callback that creates an effect on an application-lifetime root will
+ * accumulate effects forever; give a request its own short-lived root instead.
+ */
+public fun <T> runWithOwner(owner: Owner, block: () -> T): T = tracking.withOwner(owner, block)
+
+/**
+ * Registers [block] to run when the enclosing owner is disposed, and — inside an [effect] — before
+ * each re-run of that effect.
+ *
+ * Cleanups run in reverse creation order, with the runtime lock released.
+ *
+ * Called outside any owner this does nothing but warn: there is no lifetime to attach to, so the
+ * cleanup could never fire.
+ */
+public fun onCleanup(block: () -> Unit) {
+    val owner = tracking.owner
+    if (owner == null) {
+        warn("onCleanup called outside of createRoot or effect; it will never run")
+        return
+    }
+
+    owner.addCleanup(block)
+}
+
+private var orphanRootInstance: Owner? = null
+
+private fun orphanRoot(): Owner {
+    return Runtime.locked {
+        orphanRootInstance ?: Owner(Scheduler.Immediate).also { orphanRootInstance = it }
+    }
 }
 
 /**
