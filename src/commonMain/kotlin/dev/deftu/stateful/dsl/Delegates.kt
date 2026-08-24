@@ -14,6 +14,7 @@ import kotlin.reflect.KProperty
  * say so at the declaration where a reader can see it.
  */
 public open class StateDelegate<T>(
+    /** The state being read. Exposed so a subclass can widen it. */
     public open val state: State<T>,
 ) : ReadOnlyProperty<Any?, T> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): T {
@@ -44,6 +45,7 @@ public open class MutableStateDelegate<T>(
  * at every use would obscure more than it reveals.
  */
 public class TrackedStateDelegate<T>(
+    /** The state being read, tracked on every property access. */
     public val state: State<T>,
 ) : ReadOnlyProperty<Any?, T> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): T {

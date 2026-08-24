@@ -5,10 +5,12 @@ import dev.deftu.stateful.State
 import dev.deftu.stateful.combine
 import dev.deftu.stateful.map
 
+/** Flips the value. The read is untracked, so calling this inside a computation adds no dependency. */
 public fun MutableState<Boolean>.toggle() {
     update { !it }
 }
 
+/** The negation, as a cached derivation. Dependents wake when the answer flips, not on every write. */
 public fun State<Boolean>.inverted(): State<Boolean> {
     return map { !it }
 }

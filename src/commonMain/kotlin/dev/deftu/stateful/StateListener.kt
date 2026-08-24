@@ -6,5 +6,9 @@ package dev.deftu.stateful
  * Contravariant so that a listener accepting a supertype can subscribe to a `State<out T>`.
  */
 public fun interface StateListener<in T> {
+    /**
+     * Called after the graph has settled and the runtime lock is released, so [value] is never
+     * a torn or half-propagated read.
+     */
     public fun onChanged(value: T)
 }

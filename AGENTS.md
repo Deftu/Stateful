@@ -174,7 +174,10 @@ follows.
 
 Permitted comments, exhaustively:
 
-- `/** */` KDoc on public items
+- `/** */` KDoc on public items — on **every** one, saying what the signature cannot. For the
+  `ext/` operators that is the equality cutoff each buys, not what it returns; a doc restating
+  the name satisfies the letter of this and is worth nothing. If there is no such thing to say,
+  the declaration probably should not be public.
 - *Why* a non-obvious line is the way it is: a platform quirk, a build-tool gap, a measured
   tradeoff, an invariant the types can't express, a link to the upstream issue
 - `TODO(owner):`

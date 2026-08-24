@@ -10,6 +10,7 @@ public fun interface Equality<in T> {
     /** Returns `true` when [a] and [b] are to be treated as the same value. */
     public fun areEqual(a: T, b: T): Boolean
 
+    /** The comparisons worth having by name. Any other rule is a lambda. */
     public companion object {
         private val STRUCTURAL = Equality<Any?> { a, b -> a == b }
         private val REFERENTIAL = Equality<Any?> { a, b -> a === b }

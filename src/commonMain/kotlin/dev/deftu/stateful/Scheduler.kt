@@ -14,6 +14,7 @@ public fun interface Scheduler {
     /** Runs [task] at whatever point this scheduler considers correct. */
     public fun schedule(task: () -> Unit)
 
+    /** The two schedulers the library ships; every host supplies its own beyond these. */
     public companion object {
         /**
          * Runs the task on the calling thread, before returning. The default.
