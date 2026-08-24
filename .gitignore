@@ -27,7 +27,12 @@ build
 .kotlin
 kotlin-js-store
 
+# agent tooling
+/.agents/
+.claude/scheduled_tasks.lock
+
 # other
+.vscode
 **/run
 .DS_Store
 Thumbs.db

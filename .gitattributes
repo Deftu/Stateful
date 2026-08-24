@@ -1,2 +1,22 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Every text file is LF in the repository and LF in the working tree, on every platform.
+# Without this, each machine's `core.autocrlf` decides and mixed endings come back through
+# a checkout. `.editorconfig` pins what editors write; this pins what git stores.
+* text=auto eol=lf
+
+# The two exceptions. `gradlew` is executed by sh and must stay LF even on Windows;
+# `gradlew.bat` is executed by cmd.exe and must stay CRLF.
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+
+# Generated, and large enough that a diff is noise rather than review material.
+gradle/wrapper/gradle-wrapper.jar -diff linguist-generated
+kotlin-js-store/yarn.lock -diff linguist-generated

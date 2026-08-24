@@ -1,28 +1,24 @@
-import groovy.lang.MissingPropertyException
+import org.gradle.api.initialization.resolve.RepositoriesMode
 
 pluginManagement {
+    // Kit cannot bootstrap its own repository out of itself.
     repositories {
-        // Snapshots
-        maven("https://maven.deftu.dev/snapshots")
-        maven("https://s01.oss.sonatype.org/content/groups/public/")
-
-        // Repositories
-        maven("https://maven.deftu.dev/releases")
-        maven("https://maven.fabricmc.net")
-        maven("https://maven.architectury.dev/")
-        maven("https://maven.minecraftforge.net")
-        maven("https://repo.essential.gg/repository/maven-public")
-        maven("https://jitpack.io/")
-
-        // Default repositories
         gradlePluginPortal()
         mavenCentral()
-        mavenLocal()
+        maven("https://maven.deftu.dev/snapshots/")
     }
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version ("0.8.+")
+    val kitVersion = "0.6.0"
+    id("dev.deftu.kit.settings") version(kitVersion)
+    id("dev.deftu.kit.settings.repositories") version(kitVersion)
 }
 
-rootProject.name = extra["project.name"]?.toString() ?: throw MissingPropertyException("The project name was not configured!")
+dependencyResolutionManagement {
+    // Kit's repositories plugin sets PREFER_SETTINGS. The Kotlin/JS toolchain adds its own
+    // ivy repositories for the Node and Yarn distributions from inside the project, which that
+    // mode discards, and the build then fails looking for `org.nodejs:node` on Maven Central.
+    // This project declares no repositories of its own, so nothing can shadow Kit's set.
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+}

@@ -1,63 +1,66 @@
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import dev.deftu.kit.conventions.java.plugin.KitJavaExtension
+import dev.deftu.kit.core.plugin.KitCoreExtension
 
 plugins {
-    kotlin("multiplatform") version("2.0.10")
-    val dgt = "2.34.0"
-    id("dev.deftu.gradle.tools") version(dgt)
-    id("dev.deftu.gradle.tools.publishing.maven") version(dgt)
+    val kitVersion = "0.6.0"
+
+    // Neither the multiplatform convention nor maven-releases applies core themselves, and
+    // core is what reads `project.group` and `project.version`. Without it both are unset and
+    // every artifact publishes as "unspecified". Declared without a version because the
+    // conventions below already put it on the classpath, and requesting one then fails.
+    id("dev.deftu.kit.core")
+
+    id("dev.deftu.kit.conventions.kotlin-multiplatform") version(kitVersion)
+    id("dev.deftu.kit.maven-releases") version(kitVersion)
+}
+
+// Kit's multiplatform convention reads the JVM target from its Java extension, but only
+// `conventions.java` installs that extension's default — and applying that here would pull the
+// Java plugin into a Kotlin Multiplatform build. Without a value the convention sets
+// `jvmTarget` to an empty provider and `compileKotlinJvm` fails configuration validation, so
+// seed it from the same property Kit would have read.
+configure<KitCoreExtension> {
+    extensions.configure<KitJavaExtension>(KitJavaExtension.NAME) {
+        targetVersion.set(providers.gradleProperty("kit.java.version").map { raw ->
+            KitJavaExtension.parseMajorVersion(raw)
+        })
+    }
 }
 
 kotlin {
     explicitApi()
 
-    // --- JVM (Desktop, Android, Server) ---
-    jvm {
-        // Compile to Java 8 bytecode
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_1_8)
-        }
+    // Kit's convention brings up jvm, js, wasmJs and the four desktop native targets from the
+    // `kit.kmp.*` properties. Everything below either adds a target it does not cover or adds
+    // configuration to one it does.
 
+    jvm {
         withSourcesJar()
     }
 
-    // --- JavaScript (Browser, Node.js) ---
     js(IR) {
         generateTypeScriptDefinitions()
         binaries.library()
-        browser()
-        nodejs()
     }
 
-    // --- WebAssembly (Experimental) ---
-    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         generateTypeScriptDefinitions()
         binaries.library()
-        browser()
     }
 
-    // --- Native (Desktop + Apple ecosystem) ---
-    linuxX64()         // Desktop Linux
-    mingwX64()         // Windows native
-    macosX64()         // macOS Intel (x86_64)
-    macosArm64()       // macOS Apple Silicon (ARM64)
-
     // --- iOS ---
-    iosArm64()         // iOS physical devices (ARM64)
-    iosSimulatorArm64()// iOS simulator on Apple Silicon (ARM64)
+    iosArm64()
+    iosSimulatorArm64()
 
     // --- tvOS ---
-    tvosArm64()        // tvOS physical devices (Apple TV)
-    tvosX64()          // tvOS simulator on Intel
-    tvosSimulatorArm64() // tvOS simulator on Apple Silicon (ARM64)
+    tvosArm64()
+    tvosX64()
+    tvosSimulatorArm64()
 
     // --- watchOS ---
-    watchosArm64()       // watchOS physical devices (Apple Watch)
-    watchosX64()         // watchOS simulator on Intel
-    watchosSimulatorArm64() // watchOS simulator on Apple Silicon (ARM64)
+    watchosArm64()
+    watchosX64()
+    watchosSimulatorArm64()
 
     sourceSets {
         val commonTest by getting {
@@ -71,11 +74,5 @@ kotlin {
                 implementation(kotlin("test-junit"))
             }
         }
-    }
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
     }
 }
