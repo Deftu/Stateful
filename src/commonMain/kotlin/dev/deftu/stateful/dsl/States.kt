@@ -73,6 +73,24 @@ public fun <T> memo(
 }
 
 /**
+ * Creates a derived state that recomputes on **every** read and caches nothing.
+ *
+ * There is no graph node behind this: [compute] runs in the caller's tracking context, so a
+ * tracked read of the result registers dependencies on whatever [compute] itself read. It is a
+ * lambda with a `State` interface on it, and costs about that much.
+ *
+ * Use it when [compute] is cheaper than the node [memo] would allocate — `state() + 1`, a field
+ * access, a string comparison. Use [memo] when the computation is expensive, or when the
+ * **equality cutoff matters**: a memo whose value is unchanged stops propagation dead, and this
+ * does not. Deriving `name().isNotBlank()` with this wakes dependents on every keystroke; deriving
+ * it with [memo] wakes them only when the answer flips.
+ *
+ * That cutoff is usually why an operator exists, which is why [map], [dev.deftu.stateful.combine]
+ * and everything in `ext` build memos rather than these.
+ */
+public fun <T> derivedStateOf(compute: () -> T): State<T> = DerivedState(compute)
+
+/**
  * Runs [block] once, and again whenever a state it read has changed.
  *
  * Every run — the first one included — goes through the owning root's [Scheduler] with the
@@ -232,6 +250,15 @@ internal class MemoState<T>(private val node: Node<T>) : State<T> {
 
     override val value: T
         get() = node.readUntracked()
+
+    override fun subscribe(listener: StateListener<T>): Subscription = subscribeTo(this, listener)
+}
+
+internal class DerivedState<T>(private val compute: () -> T) : State<T> {
+    override fun invoke(): T = compute()
+
+    override val value: T
+        get() = untracked(compute)
 
     override fun subscribe(listener: StateListener<T>): Subscription = subscribeTo(this, listener)
 }

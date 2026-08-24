@@ -2,6 +2,12 @@ package dev.deftu.stateful
 
 import dev.deftu.stateful.dsl.memo
 
+/*
+ * The null-handling reads below are functions, so they track, on the same rule that makes
+ * `state()` a function and `state.value` a property. Reading untracked here would make
+ * `memo { config.getOrDefault(fallback) }` compile and silently never update.
+ */
+
 /**
  * Derives a state by applying [mapper] to this one.
  *
@@ -30,20 +36,20 @@ public fun <T, U> State<T>.zip(other: State<U>): State<Pair<T, U>> = memo { this
 public fun <T, U, R> State<T>.combine(other: State<U>, transform: (T, U) -> R): State<R> =
     memo { transform(this(), other()) }
 
-/** Returns the value, or [default] when it is null. */
-public fun <T : Any> State<T?>.getOrDefault(default: T): T = value ?: default
+/** Reads tracked, returning [default] when the value is null. */
+public fun <T : Any> State<T?>.getOrDefault(default: T): T = this() ?: default
 
-/** Returns the value, or the result of [default] when it is null. */
-public fun <T : Any> State<T?>.getOrElse(default: () -> T): T = value ?: default()
+/** Reads tracked, returning the result of [default] when the value is null. */
+public fun <T : Any> State<T?>.getOrElse(default: () -> T): T = this() ?: default()
 
-/** Returns the value, or throws [exception] when it is null. */
-public fun <T : Any> State<T?>.getOrThrow(exception: Throwable): T = value ?: throw exception
+/** Reads tracked, throwing [exception] when the value is null. */
+public fun <T : Any> State<T?>.getOrThrow(exception: Throwable): T = this() ?: throw exception
 
-/** Returns the value, or throws the result of [exception] when it is null. */
-public fun <T : Any> State<T?>.getOrThrow(exception: () -> Throwable): T = value ?: throw exception()
+/** Reads tracked, throwing the result of [exception] when the value is null. */
+public fun <T : Any> State<T?>.getOrThrow(exception: () -> Throwable): T = this() ?: throw exception()
 
-/** Returns the value, or throws [IllegalStateException] with [message] when it is null. */
-public fun <T : Any> State<T?>.getOrThrow(message: String): T = value ?: throw IllegalStateException(message)
+/** Reads tracked, throwing [IllegalStateException] with [message] when the value is null. */
+public fun <T : Any> State<T?>.getOrThrow(message: String): T = this() ?: throw IllegalStateException(message)
 
-/** Returns the value, or throws [IllegalStateException] when it is null. */
-public fun <T : Any> State<T?>.getOrThrow(): T = value ?: throw IllegalStateException("Value is null")
+/** Reads tracked, throwing [IllegalStateException] when the value is null. */
+public fun <T : Any> State<T?>.getOrThrow(): T = this() ?: throw IllegalStateException("Value is null")

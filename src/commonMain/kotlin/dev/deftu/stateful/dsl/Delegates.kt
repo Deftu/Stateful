@@ -7,11 +7,11 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
- * Reads [state] as a delegated property.
+ * Reads [state] as a delegated property, **without** registering a dependency.
  *
- * The read is **untracked**. A property access looks like plain data access at the call site, so
- * silently creating a dependency there would be surprising; read the state directly with
- * `state()` where a dependency is what you want.
+ * A property access looks like plain data access at the call site, so silently creating a
+ * dependency there would be surprising. Use [TrackedStateDelegate] when the read should track, and
+ * say so at the declaration where a reader can see it.
  */
 public open class StateDelegate<T>(
     public open val state: State<T>,
@@ -21,6 +21,11 @@ public open class StateDelegate<T>(
     }
 }
 
+/**
+ * Reads [state] as a delegated property, and writes through on assignment.
+ *
+ * The read is untracked, for the reason given on [StateDelegate].
+ */
 public open class MutableStateDelegate<T>(
     override val state: MutableState<T>,
 ) : StateDelegate<T>(state), ReadWriteProperty<Any?, T> {
@@ -29,10 +34,34 @@ public open class MutableStateDelegate<T>(
     }
 }
 
+/**
+ * Reads [state] as a delegated property **and registers a dependency**, the same as `state()`.
+ *
+ * The declaration is where this is visible — `val title by trackedStateBound(titleState)` — and
+ * the reads that follow look like any other property access. That is the hazard as well as the
+ * point: inside a [memo] or [effect], every read of the property subscribes, and a reader skimming
+ * the call site cannot tell. Prefer it where the whole class is reactive and the noise of `state()`
+ * at every use would obscure more than it reveals.
+ */
+public class TrackedStateDelegate<T>(
+    public val state: State<T>,
+) : ReadOnlyProperty<Any?, T> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        return state()
+    }
+}
+
+/** Delegates to [state] with an untracked read. */
 public fun <T> stateBound(state: State<T>): StateDelegate<T> {
     return StateDelegate(state)
 }
 
+/** Delegates to [state] with an untracked read, and writes through on assignment. */
 public fun <T> mutableStateBound(state: MutableState<T>): MutableStateDelegate<T> {
     return MutableStateDelegate(state)
+}
+
+/** Delegates to [state] with a tracked read, so reads of the property register a dependency. */
+public fun <T> trackedStateBound(state: State<T>): TrackedStateDelegate<T> {
+    return TrackedStateDelegate(state)
 }
