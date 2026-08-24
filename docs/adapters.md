@@ -17,8 +17,11 @@ because Compose Multiplatform's runtime does. `stateful-elementa` compiles again
 artifact alone, so it does not pull a UI toolkit into your build.
 
 > The samples on this page need their framework on the classpath, so they are not compiled by the
-> core sample test. Each is taken from the adapter's own README, where it is backed by that module's
-> tests.
+> core sample test. The Kotlin halves are backed by each adapter module's own tests —
+> `SvelteTypeScriptSamplesTest` and `ReactTypeScriptSamplesTest` cover the exported declarations
+> below. The TypeScript halves were typechecked against the `.d.ts` the build actually generates,
+> but nothing re-checks them on every build; treat a change to an exported signature as a change to
+> them.
 
 ## One rule for all of them
 
@@ -159,6 +162,68 @@ val scheduler = Scheduler { task -> Window.enqueueRenderOperation(task) }
 
 State V1 is not bridged. Move to V2, then bridge.
 
+## Kotlin/JS and TypeScript
+
+Both JS targets generate TypeScript definitions, so a JavaScript or TypeScript front end can consume
+a Stateful state — but only through a door you open yourself. Four facts decide the shape of every
+sample below.
+
+**The core library exports nothing to TypeScript.** Nothing in `stateful` is annotated `@JsExport`,
+so its emitted `stateful.d.ts` declares no types at all. `State`, `mutableStateOf`, `memo` and the
+rest never cross the boundary, and they are not meant to — the reactive graph stays on the Kotlin
+side.
+
+**The adapters export one type each,** and nothing else. `stateful-svelte.d.ts` carries `Readable`
+and `Writable`; `stateful-react.d.ts` carries `ExternalStore`. The functions that *build* a store —
+`asSvelteStore`, `asExternalStore`, `statefulRoot` — are not exported, so TypeScript cannot call
+them.
+
+**So you export the store.** Build it in Kotlin, annotate it `@JsExport`, and give it an explicit
+type, because every type in an exported signature must itself be exportable — an inferred
+`MutableState<Int>` is not:
+
+```kotlin
+private val count = mutableStateOf(0)
+
+@JsExport
+val countStore: Writable<Int> = count.asSvelteStore()
+
+@JsExport
+fun increment() {
+    count.update { it + 1 }
+}
+```
+
+`@JsExport` is still opt-in, so the compiler asks for `@OptIn(ExperimentalJsExport::class)` or the
+matching compiler flag. Export a function for every write the front end needs to make: the store's
+own `set` and `update` cover a `Writable`, and a React `ExternalStore` is read-only by design.
+
+**Consume the exported interfaces, never implement them.** Kotlin/JS stamps each one with a
+`__doNotUseOrImplementIt` marker, so an object literal of the right shape is rejected:
+
+```ts
+// error TS2741: Property '__doNotUseOrImplementIt' is missing
+const handWritten: ExternalStore<number> = {
+  subscribe: () => () => {},
+  getSnapshot: () => 1,
+};
+```
+
+Import the type from the adapter's declarations. The emitted namespace is dotted, which is why the
+import looks the way it does:
+
+```ts
+import type { dev } from "stateful-react";
+
+type ExternalStore<T> = dev.deftu.stateful.react.ExternalStore<T>;
+```
+
+> [!WARNING]
+> **Never pass an exported method unbound.** Kotlin/JS emits `subscribe` and `getSnapshot` as
+> prototype methods that read `this`, so `store.getSnapshot` detached from its receiver throws.
+> Kotlin's `store::getSnapshot` binds; TypeScript's `store.getSnapshot` does not. Wrap in an arrow,
+> as every sample below does.
+
 ## Svelte
 
 [`svelte/README.md`](../svelte/README.md)
@@ -171,22 +236,44 @@ State V1 is not bridged. Move to V2, then bridge.
 No dependency on Svelte. The store contract is duck-typed, so producing the right object shape is
 the whole job, and it works in Svelte 3, 4 and 5 alike.
 
+Kotlin side — the store crosses, the `MutableState` behind it does not:
+
 ```kotlin
-@JsExport
-val count = mutableStateOf(0)
+private val count = mutableStateOf(0)
 
 @JsExport
-val countStore = count.asSvelteStore()
+val countStore: Writable<Int> = count.asSvelteStore()
 ```
 
+TypeScript side, in a `.svelte` component. `$countStore` is Svelte's auto-subscription, and it
+infers `number` from the emitted declarations:
+
 ```svelte
-<script>
+<script lang="ts">
   import { countStore } from "your-kotlin-module";
 </script>
 
-<button on:click={() => countStore.update(n => n + 1)}>
+<button on:click={() => countStore.update((n) => n + 1)}>
   {$countStore}
 </button>
+```
+
+Svelte 5 spells that event attribute `onclick`; the store contract itself is identical across 3, 4
+and 5.
+
+To hold the store in a `.ts` file rather than a component, either import the emitted type or
+annotate it with Svelte's own — the Kotlin `Writable<T>` satisfies `svelte/store`'s `Writable<T>`
+structurally, `this: void` annotations included:
+
+```ts
+import type { Writable } from "svelte/store";
+import { countStore } from "your-kotlin-module";
+
+const store: Writable<number> = countStore;
+
+const stop = store.subscribe((n) => console.log(n));
+store.update((n) => n + 1);
+stop();
 ```
 
 **Runes are not the target, and cannot be.** `$state` is compiler magic applied to a declaration, so
@@ -211,7 +298,9 @@ component's teardown calls it.
 | `statefulRoot()` | An `Owner` for React to dispose on unmount |
 
 No dependency on React — a Kotlin/JS library that hard-depends on React cannot be used from anything
-that is not React, and the hook binding is two lines in your own code:
+that is not React, and the hook binding is two lines in your own code.
+
+From Kotlin, with the React wrappers:
 
 ```kotlin
 val store = useMemo({ someState.asExternalStore() }, emptyArray())
@@ -225,6 +314,65 @@ useEffect({ { root.dispose() } }, emptyArray())
 
 `subscribe` is a core primitive of this library rather than a legacy shim precisely because this hook
 wants exactly a subscription plus an untracked snapshot.
+
+### From TypeScript
+
+Export the store and the writes from Kotlin:
+
+```kotlin
+private val counter = mutableStateOf(0)
+
+@JsExport
+val counterStore: ExternalStore<Int> = memo { counter() }.asExternalStore()
+
+@JsExport
+fun increment() {
+    counter.update { it + 1 }
+}
+```
+
+Then in a `.tsx` component:
+
+```tsx
+import { useSyncExternalStore } from "react";
+import { counterStore, increment } from "your-kotlin-module";
+
+const subscribe = (onStoreChange: () => void) => counterStore.subscribe(onStoreChange);
+const getSnapshot = () => counterStore.getSnapshot();
+
+export function Counter() {
+  const count = useSyncExternalStore(subscribe, getSnapshot);
+
+  return <button onClick={() => increment()}>{count}</button>;
+}
+```
+
+Two things about those two wrapper lines, both of which are why they sit at module scope rather than
+inside the component.
+
+**They bind the receiver.** `counterStore.getSnapshot` on its own is a detached prototype method and
+throws when React calls it:
+
+```tsx
+// Wrong twice over: unbound methods, and a new identity every render.
+const count = useSyncExternalStore(counterStore.subscribe, counterStore.getSnapshot);
+```
+
+**They keep a stable identity.** React re-subscribes whenever the `subscribe` function it is handed
+changes identity, so arrows created inside the component body tear the subscription down and rebuild
+it on every render. Module scope, or `useCallback` with an empty dependency array, fixes both.
+
+If you want the store's type in your own signatures, take it from the emitted declarations:
+
+```ts
+import type { dev } from "stateful-react";
+
+type ExternalStore<T> = dev.deftu.stateful.react.ExternalStore<T>;
+
+export function readTwice(store: ExternalStore<number>): [number, number] {
+  return [store.getSnapshot(), store.getSnapshot()];
+}
+```
 
 **`getSnapshot` must be referentially stable between notifications.** React compares successive calls
 with `Object.is` and re-renders until two agree. A snapshot that allocates on every call never

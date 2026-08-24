@@ -15,7 +15,7 @@ Read in order if you are new. Jump straight in if you are not.
 | [Scheduling](scheduling.md) | `Scheduler`, `Immediate`, `queued()`, `batch`, and which thread an effect body lands on |
 | [Reactive collections](collections.md) | Per-element tracking, `ListChange`, and what `mapKeyed` buys |
 | [Concurrency](concurrency.md) | What the graph guarantees, the lock, and what a memo body may not do |
-| [Adapters](adapters.md) | coroutines, Elementa, Compose, Svelte, React |
+| [Adapters](adapters.md) | coroutines, Elementa, Compose, Svelte, React, and the TypeScript boundary |
 | [Testing](testing.md) | Owning a test's lifetime, making effects deterministic, asserting you have not leaked |
 | [Performance](performance.md) | What is cheap and what is not, with the benchmark numbers |
 
@@ -54,4 +54,9 @@ pick the wrong one.
 Every Kotlin sample on these pages that depends only on the core library is mirrored by
 `src/commonTest/kotlin/DocsSamplesTest.kt`, which asserts what the surrounding prose claims rather
 than merely that the code compiles. A sample nobody runs is an untested claim. Samples that need a
-foreign framework are marked where they appear.
+foreign framework are marked where they appear, and the Kotlin ones among them are covered by their
+own adapter module's tests.
+
+The TypeScript and Svelte samples on the [Adapters](adapters.md) page were typechecked against the
+declaration files the build generates, but no Gradle task re-checks them. A change to an
+`@JsExport`ed signature is a change to those samples too.

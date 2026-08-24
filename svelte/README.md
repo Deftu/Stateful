@@ -16,12 +16,15 @@ object shape is the whole job.
 | `State<T>.asSvelteStore()` | A `Readable<T>`: `subscribe(fn)` returning an unsubscribe function |
 | `MutableState<T>.asSvelteStore()` | A `Writable<T>`: the above plus `set` and `update` |
 
+Only `@JsExport`ed declarations reach the emitted `.d.ts`, and every type in an exported
+signature must itself be exportable. `MutableState` is not, so the source stays private and
+the store crosses under its interface type — which inference will not give you.
+
 ```kotlin
-@JsExport
-val count = mutableStateOf(0)
+private val count = mutableStateOf(0)
 
 @JsExport
-val countStore = count.asSvelteStore()
+val countStore: Writable<Int> = count.asSvelteStore()
 ```
 
 ```svelte
