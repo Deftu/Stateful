@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import dev.deftu.stateful.dsl.subscribeOnce
 
 class SubscriptionTest {
     @Test
@@ -144,6 +145,6 @@ class SubscriptionTest {
 
         state.update { it * 3 }
 
-        assertEquals(6, state.get())
+        assertEquals(6, state.value)
     }
 }

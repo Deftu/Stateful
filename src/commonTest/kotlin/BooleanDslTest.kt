@@ -11,7 +11,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = stateOf(true)
         val result = state and other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -19,7 +19,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = stateOf(false)
         val result = state and other
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -27,7 +27,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = false
         val result = state and other
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -35,7 +35,7 @@ class BooleanDslTest {
         val state = stateOf(false)
         val other = stateOf(false)
         val result = state and other
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -43,7 +43,7 @@ class BooleanDslTest {
         val state = true
         val other = stateOf(true)
         val result = state and other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -51,7 +51,7 @@ class BooleanDslTest {
         val state = false
         val other = stateOf(true)
         val result = state and other
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -59,7 +59,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = stateOf(true)
         val result = state or other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -67,7 +67,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = stateOf(false)
         val result = state or other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -75,7 +75,7 @@ class BooleanDslTest {
         val state = stateOf(true)
         val other = false
         val result = state or other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -83,7 +83,7 @@ class BooleanDslTest {
         val state = stateOf(false)
         val other = stateOf(false)
         val result = state or other
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -91,7 +91,7 @@ class BooleanDslTest {
         val state = true
         val other = stateOf(true)
         val result = state or other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -99,13 +99,13 @@ class BooleanDslTest {
         val state = false
         val other = stateOf(true)
         val result = state or other
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
     fun stateNotReturnsFalse() {
         val state = stateOf(true)
         val result = !state
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 }

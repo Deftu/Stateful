@@ -2,32 +2,35 @@ import dev.deftu.stateful.dsl.mappedStateOf
 import dev.deftu.stateful.dsl.mutableStateOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import dev.deftu.stateful.map
+import dev.deftu.stateful.flatMap
+import dev.deftu.stateful.State
 
 class MappedStateTest {
     @Test
     fun mappedStateReturnsCorrectValue() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
-        assertEquals(0, mappedState.get())
+        assertEquals(0, mappedState.value)
 
         state.set(1)
-        assertEquals(2, mappedState.get())
+        assertEquals(2, mappedState.value)
     }
 
     @Test
     fun mappedStateReturnsCorrectValueAfterMultipleChanges() {
         val state = mutableStateOf(0)
         val mappedState = mappedStateOf(state) { it * 2 }
-        assertEquals(0, mappedState.get())
+        assertEquals(0, mappedState.value)
 
         state.set(1)
-        assertEquals(2, mappedState.get())
+        assertEquals(2, mappedState.value)
 
         state.set(2)
-        assertEquals(4, mappedState.get())
+        assertEquals(4, mappedState.value)
 
         state.set(3)
-        assertEquals(6, mappedState.get())
+        assertEquals(6, mappedState.value)
     }
 
     @Test
@@ -37,12 +40,12 @@ class MappedStateTest {
         val mappedState2 = mappedStateOf(state) { it * 3 }
 
         state.set(3)
-        assertEquals(6, mappedState.get())
-        assertEquals(9, mappedState2.get())
+        assertEquals(6, mappedState.value)
+        assertEquals(9, mappedState2.value)
 
         state.set(4)
-        assertEquals(8, mappedState.get())
-        assertEquals(12, mappedState2.get())
+        assertEquals(8, mappedState.value)
+        assertEquals(12, mappedState2.value)
     }
 
     @Test
@@ -70,43 +73,36 @@ class MappedStateTest {
 
         state.set(5)
 
-        assertEquals("value: 10", stringified.get())
+        assertEquals("value: 10", stringified.value)
         assertEquals(listOf("value: 10"), observed)
     }
 
     @Test
-    fun mappedStateRebindsToTheNewSource() {
-        val state = mutableStateOf(1)
-        val other = mutableStateOf(10)
-        val mappedState = mappedStateOf(state) { it * 2 }
-        assertEquals(2, mappedState.get())
+    fun mappedStateFollowsASwappedSource() {
+        val first = mutableStateOf(1)
+        val second = mutableStateOf(10)
+        val source = mutableStateOf<State<Int>>(first)
+        val mappedState = source.flatMap { it }.map { it * 2 }
+        assertEquals(2, mappedState.value)
 
-        mappedState.rebind(other)
-        assertEquals(20, mappedState.get())
+        source.set(second)
+        assertEquals(20, mappedState.value)
 
-        other.set(20)
-        assertEquals(40, mappedState.get())
+        second.set(20)
+        assertEquals(40, mappedState.value)
     }
 
     @Test
-    fun mappedStateRebindDetachesTheOldSource() {
-        val state = mutableStateOf(1)
-        val mappedState = mappedStateOf(state) { it * 2 }
+    fun swappingTheSourceDetachesTheOldOne() {
+        val first = mutableStateOf(1)
+        val second = mutableStateOf(10)
+        val source = mutableStateOf<State<Int>>(first)
+        val mappedState = source.flatMap { it }.map { it * 2 }
+        assertEquals(2, mappedState.value)
 
-        mappedState.rebind(mutableStateOf(10))
-        state.set(99)
+        source.set(second)
+        first.set(99)
 
-        assertEquals(20, mappedState.get())
-    }
-
-    @Test
-    fun disposedMappedStateStopsFollowingItsSource() {
-        val state = mutableStateOf(1)
-        val mappedState = mappedStateOf(state) { it * 2 }
-
-        mappedState.dispose()
-        state.set(50)
-
-        assertEquals(2, mappedState.get())
+        assertEquals(20, mappedState.value)
     }
 }

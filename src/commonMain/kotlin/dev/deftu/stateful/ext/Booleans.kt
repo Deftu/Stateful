@@ -2,6 +2,8 @@ package dev.deftu.stateful.ext
 
 import dev.deftu.stateful.MutableState
 import dev.deftu.stateful.State
+import dev.deftu.stateful.combine
+import dev.deftu.stateful.map
 
 public fun MutableState<Boolean>.toggle() {
     update { !it }

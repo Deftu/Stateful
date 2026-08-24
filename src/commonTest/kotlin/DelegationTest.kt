@@ -9,7 +9,7 @@ class DelegationTest {
     @Test
     fun stateDelegateReturnsInitialValue() {
         val state = stateOf(10)
-        assertEquals(10, state.get())
+        assertEquals(10, state.value)
 
         val value by stateBound(state)
         assertEquals(10, value)
@@ -18,7 +18,7 @@ class DelegationTest {
     @Test
     fun mutableStateDelegateUpdatesCorrectly() {
         val state = mutableStateOf(10)
-        assertEquals(10, state.get())
+        assertEquals(10, state.value)
 
         var value by mutableStateBound(state)
         assertEquals(10, value)

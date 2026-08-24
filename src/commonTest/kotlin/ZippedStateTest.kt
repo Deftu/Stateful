@@ -3,12 +3,14 @@ import dev.deftu.stateful.dsl.stateOf
 import dev.deftu.stateful.dsl.zippedStateOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import dev.deftu.stateful.flatMap
+import dev.deftu.stateful.State
 
 class ZippedStateTest {
     @Test
     fun zippedStateReturnsInitialPair() {
         val zipped = zippedStateOf(stateOf(1), stateOf(2))
-        assertEquals(1 to 2, zipped.get())
+        assertEquals(1 to 2, zipped.value)
     }
 
     @Test
@@ -18,63 +20,25 @@ class ZippedStateTest {
         val zipped = zippedStateOf(first, second)
 
         first.set(10)
-        assertEquals(10 to 2, zipped.get())
+        assertEquals(10 to 2, zipped.value)
 
         second.set(20)
-        assertEquals(10 to 20, zipped.get())
+        assertEquals(10 to 20, zipped.value)
     }
 
     @Test
-    fun rebindFirstUpdatesFirstValue() {
-        val zipped = zippedStateOf(stateOf(1), stateOf(2))
-
-        zipped.rebindFirst(stateOf(3))
-
-        assertEquals(3 to 2, zipped.get())
-    }
-
-    @Test
-    fun rebindSecondUpdatesSecondValue() {
-        val zipped = zippedStateOf(stateOf(1), stateOf(2))
-
-        zipped.rebindSecond(stateOf(3))
-
-        assertEquals(1 to 3, zipped.get())
-    }
-
-    @Test
-    fun rebindFirstSurvivesLaterSecondUpdates() {
+    fun zippedStateFollowsASwappedSource() {
         val first = mutableStateOf(1)
-        val second = mutableStateOf(2)
-        val zipped = zippedStateOf(first, second)
+        val replacement = mutableStateOf(3)
+        val source = mutableStateOf<State<Int>>(first)
+        val zipped = zippedStateOf(source.flatMap { it }, stateOf(2))
+        assertEquals(1 to 2, zipped.value)
 
-        zipped.rebindFirst(stateOf(3))
-        second.set(20)
+        source.set(replacement)
+        assertEquals(3 to 2, zipped.value)
 
-        assertEquals(3 to 20, zipped.get())
-    }
-
-    @Test
-    fun rebindSecondSurvivesLaterFirstUpdates() {
-        val first = mutableStateOf(1)
-        val second = mutableStateOf(2)
-        val zipped = zippedStateOf(first, second)
-
-        zipped.rebindSecond(stateOf(3))
-        first.set(10)
-
-        assertEquals(10 to 3, zipped.get())
-    }
-
-    @Test
-    fun rebindDetachesTheOldSource() {
-        val first = mutableStateOf(1)
-        val zipped = zippedStateOf(first, stateOf(2))
-
-        zipped.rebindFirst(stateOf(3))
         first.set(99)
-
-        assertEquals(3 to 2, zipped.get())
+        assertEquals(3 to 2, zipped.value)
     }
 
     @Test

@@ -13,7 +13,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("world")
         val result = state.contains(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -21,7 +21,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("Heya!")
         val result = state.contains(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -29,7 +29,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "world"
         val result = state.contains(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -37,7 +37,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "Heya!"
         val result = state.contains(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -45,7 +45,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello")
         val result = state.startsWith(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -53,7 +53,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("world!")
         val result = state.startsWith(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -61,7 +61,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "Hello"
         val result = state.startsWith(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -69,7 +69,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "world!"
         val result = state.startsWith(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -77,7 +77,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("world!")
         val result = state.endsWith(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -85,7 +85,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello")
         val result = state.endsWith(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -93,7 +93,7 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "world!"
         val result = state.endsWith(other)
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
@@ -101,50 +101,51 @@ class StringDslTest {
         val state = stateOf("Hello, world!")
         val other = "Hello"
         val result = state.endsWith(other)
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
-    fun stateStringEqualsReturnsTrue() {
+    fun statesCompareByIdentityNotByValue() {
         val state = stateOf("Hello, world!")
         val other = stateOf("Hello, world!")
-        val result = state == other
-        assertEquals(true, result)
+
+        assertEquals(false, state == other)
+        assertEquals(true, state == state)
     }
 
     @Test
-    fun stateStringEqualsReturnsFalse() {
+    fun statesHoldingEqualValuesCompareTheirValues() {
         val state = stateOf("Hello, world!")
-        val other = stateOf("Hello, world")
-        val result = state == other
-        assertEquals(false, result)
+        val other = stateOf("Hello, world!")
+
+        assertEquals(state.value, other.value)
     }
 
     @Test
     fun stateStringIsEmptyReturnsFalse() {
         val state = stateOf("Hello, world!")
         val result = state.isEmpty()
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 
     @Test
     fun stateStringIsNotEmptyReturnsTrue() {
         val state = stateOf("Hello, world!")
         val result = state.isNotEmpty()
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
     fun stateStringIsEmptyReturnsTrue() {
         val state = stateOf("")
         val result = state.isEmpty()
-        assertEquals(true, result.get())
+        assertEquals(true, result.value)
     }
 
     @Test
     fun stateStringIsNotEmptyReturnsFalse() {
         val state = stateOf("")
         val result = state.isNotEmpty()
-        assertEquals(false, result.get())
+        assertEquals(false, result.value)
     }
 }

@@ -1,6 +1,8 @@
 package dev.deftu.stateful.ext
 
 import dev.deftu.stateful.State
+import dev.deftu.stateful.combine
+import dev.deftu.stateful.map
 
 public fun State<String>.length(): State<Int> {
     return map(String::length)

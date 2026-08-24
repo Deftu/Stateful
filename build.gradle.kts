@@ -63,6 +63,16 @@ kotlin {
     watchosSimulatorArm64()
 
     sourceSets {
+        val commonMain by getting {
+            dependencies {
+                // The graph lock. `kotlinx.atomicfu.locks` is the only multiplatform reentrant
+                // lock available; on JS and wasm it degrades to a no-op, so thread safety is free
+                // there. Used as a plain library — the compiler plugin is only needed for the
+                // atomic field transforms, and every field here is written under the lock.
+                implementation("org.jetbrains.kotlinx:atomicfu:0.33.0")
+            }
+        }
+
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))

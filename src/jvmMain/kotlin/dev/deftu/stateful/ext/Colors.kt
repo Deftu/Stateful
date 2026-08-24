@@ -5,6 +5,7 @@ package dev.deftu.stateful.ext
 import dev.deftu.stateful.MutableState
 import dev.deftu.stateful.State
 import java.awt.Color
+import dev.deftu.stateful.map
 
 public fun State<Color>.rgb(): State<Int> {
     return map { value -> value.rgb }

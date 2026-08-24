@@ -1,6 +1,7 @@
 package dev.deftu.stateful.ext
 
 import dev.deftu.stateful.State
+import dev.deftu.stateful.map
 
 public fun <A, B, C> State<Triple<A, B, C>>.first(): State<A> {
     return map { value -> value.first }

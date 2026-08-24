@@ -15,13 +15,13 @@ class DerivedStateTest {
         val first = mutableStateOf(1)
         val second = mutableStateOf(2)
         val combined = combineStateOf(first, second) { a, b -> a + b }
-        assertEquals(3, combined.get())
+        assertEquals(3, combined.value)
 
         first.set(10)
-        assertEquals(12, combined.get())
+        assertEquals(12, combined.value)
 
         second.set(20)
-        assertEquals(30, combined.get())
+        assertEquals(30, combined.value)
     }
 
     @Test
@@ -45,20 +45,20 @@ class DerivedStateTest {
         val second = mutableStateOf(2)
         val third = mutableStateOf(3)
         val combined = combineStateOf(first, second, third) { a, b, c -> a + b + c }
-        assertEquals(6, combined.get())
+        assertEquals(6, combined.value)
 
         third.set(30)
-        assertEquals(33, combined.get())
+        assertEquals(33, combined.value)
     }
 
     @Test
     fun zippedStateOfSupportsThreeSources() {
         val first = mutableStateOf(1)
         val zipped = zippedStateOf(first, stateOf(2), stateOf(3))
-        assertEquals(Triple(1, 2, 3), zipped.get())
+        assertEquals(Triple(1, 2, 3), zipped.value)
 
         first.set(10)
-        assertEquals(Triple(10, 2, 3), zipped.get())
+        assertEquals(Triple(10, 2, 3), zipped.value)
     }
 
     @Test
@@ -69,8 +69,8 @@ class DerivedStateTest {
 
         source.set(10 to 20)
 
-        assertEquals(10, first.get())
-        assertEquals(20, second.get())
+        assertEquals(10, first.value)
+        assertEquals(20, second.value)
     }
 
     @Test
@@ -80,7 +80,7 @@ class DerivedStateTest {
 
         source.set(Triple(1, 2, 30))
 
-        assertEquals(30, third.get())
+        assertEquals(30, third.value)
     }
 
     @Test
@@ -89,16 +89,16 @@ class DerivedStateTest {
         val right = mutableStateOf("right")
         val selector = mutableStateOf(true)
         val flattened = flatMappedStateOf(selector) { useLeft -> if (useLeft) left else right }
-        assertEquals("left", flattened.get())
+        assertEquals("left", flattened.value)
 
         left.set("left updated")
-        assertEquals("left updated", flattened.get())
+        assertEquals("left updated", flattened.value)
 
         selector.set(false)
-        assertEquals("right", flattened.get())
+        assertEquals("right", flattened.value)
 
         right.set("right updated")
-        assertEquals("right updated", flattened.get())
+        assertEquals("right updated", flattened.value)
     }
 
     @Test
@@ -111,7 +111,7 @@ class DerivedStateTest {
         selector.set(false)
         left.set("left updated")
 
-        assertEquals("right", flattened.get())
+        assertEquals("right", flattened.value)
     }
 
     @Test
@@ -128,14 +128,4 @@ class DerivedStateTest {
         assertEquals(listOf("updated"), observed)
     }
 
-    @Test
-    fun disposedZippedStateStopsFollowingItsSources() {
-        val first = mutableStateOf(1)
-        val zipped = zippedStateOf(first, stateOf(2))
-
-        zipped.dispose()
-        first.set(50)
-
-        assertEquals(1 to 2, zipped.get())
-    }
 }
