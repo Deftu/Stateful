@@ -40,6 +40,10 @@ which class-loads Minecraft, and nothing in this module's tests could exercise i
 val scheduler = Scheduler { task -> Window.enqueueRenderOperation(task) }
 ```
 
+This one line is the only thing in this README that cannot be compiled against a test here, because
+naming `Window` class-loads Minecraft. Everything else the adapter provides is covered by
+`ElementaBridgeTest`, against real Elementa state objects rather than fakes.
+
 **State V1 is not bridged.** Elementa's own deprecation messages point V1 users at V2, for the same
 reasons this library moved off the push model. Move to V2, then bridge.
 

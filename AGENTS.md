@@ -149,6 +149,12 @@ follows.
   published ABI whether or not you wrote it down.
 - Tests live in `commonTest` so every target runs them. A test only moves to a platform
   source set when the thing it tests does.
+- **Every code sample in a document has a mirroring test.** The README, the usage guide, the
+  specification's worked examples and each adapter README are all executed, and the tests assert
+  what the samples' *comments* claim rather than only that they compile. This is not tidiness: an
+  uncompiled sample drifted through four milestones, the same wrong sentence lived in two documents
+  at once, and compiling one of them exposed a real double-run bug in the graph. A sample nobody
+  runs is an untested claim, and some claims are about behaviour.
 - **Test first, implement after.** Write the test, watch it fail for the right reason, then
   make it pass. A test written after the code tends to assert what the code happens to do
   rather than what it should do, which is a test that can never fail. Each test states a
